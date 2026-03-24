@@ -101,10 +101,11 @@ func (s *socket) onConnection(event *socketio.EventPayload) {
 	}
 
 	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-		RowId:  params.RowId,
-		Type:   reqType,
-		Offset: params.Offset,
-		Limit:  params.Limit,
+		RowId:     params.RowId,
+		Type:      reqType,
+		ProjectId: params.ProjectId,
+		Offset:    params.Offset,
+		Limit:     params.Limit,
 	})
 	if err != nil {
 		errMsg := "failed to load rooms"
@@ -163,10 +164,11 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 		}
 
 		items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-			RowId:  params.RowId,
-			Type:   reqType,
-			Offset: params.Offset,
-			Limit:  params.Limit,
+			RowId:     params.RowId,
+			Type:      reqType,
+			ProjectId: params.ProjectId,
+			Offset:    params.Offset,
+			Limit:     params.Limit,
 		})
 		if err == nil {
 			event.Socket.Emit("rooms list", items.Rooms)
@@ -219,10 +221,11 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 	}
 
 	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-		RowId:  params.RowId,
-		Type:   reqType,
-		Offset: params.Offset,
-		Limit:  params.Limit,
+		RowId:     params.RowId,
+		Type:      reqType,
+		ProjectId: params.ProjectId,
+		Offset:    params.Offset,
+		Limit:     params.Limit,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onCreateRoom", Message: "failed to fetch rooms list", Error: err.Error(), Request: reqMap})
@@ -294,10 +297,11 @@ func (s *socket) onJoinRoom(event *socketio.EventPayload) {
 	}
 
 	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-		RowId:  params.RowId,
-		Type:   reqType,
-		Offset: params.Offset,
-		Limit:  params.Limit,
+		RowId:     params.RowId,
+		Type:      reqType,
+		ProjectId: params.ProjectId,
+		Offset:    params.Offset,
+		Limit:     params.Limit,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onJoinRoom", Message: "failed to load rooms list", Error: err.Error(), Request: reqMap})
@@ -327,10 +331,11 @@ func (s *socket) onRoomsList(event *socketio.EventPayload) {
 	defer cancel()
 
 	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-		RowId:  params.RowId,
-		Type:   params.Type,
-		Offset: params.Offset,
-		Limit:  params.Limit,
+		RowId:     params.RowId,
+		Type:      params.Type,
+		ProjectId: params.ProjectId,
+		Offset:    params.Offset,
+		Limit:     params.Limit,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onRoomsList", Message: "failed to load rooms", Error: err.Error(), Request: reqMap})
@@ -422,10 +427,11 @@ func (s *socket) onChatMessage(event *socketio.EventPayload) {
 
 		for _, m := range members {
 			items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-				RowId:  m.RowId,
-				Type:   reqType,
-				Offset: params.Offset,
-				Limit:  params.Limit,
+				RowId:     m.RowId,
+				Type:      reqType,
+				ProjectId: params.ProjectId,
+				Offset:    params.Offset,
+				Limit:     params.Limit,
 			})
 			if err == nil {
 				s.io.To(m.RowId).Emit("rooms list", items.Rooms)

@@ -137,6 +137,9 @@ func (r *postgresRepo) RoomGetList(ctx context.Context, req *models.GetListRoomR
 	if req.Type != "" {
 		builder = builder.Where(sq.Eq{"r.type": req.Type})
 	}
+	if req.ProjectId != "" {
+		builder = builder.Where(sq.Eq{"r.project_id": req.ProjectId})
+	}
 
 	sqlStr, args, err := builder.ToSql()
 	if err != nil {

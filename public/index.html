@@ -233,6 +233,29 @@
     .log-err { color: #f87171; }
     .log-sys { color: #fbbf24; }
     
+    /* Drawer Styling */
+    .drawer-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000;
+      display: none; opacity: 0; transition: opacity 0.3s ease;
+    }
+    .drawer-overlay.open { display: block; opacity: 1; }
+    .drawer {
+      position: fixed; top: 0; left: -400px; bottom: 0; width: 380px;
+      background: var(--bg); z-index: 1001;
+      border-right: 1px solid var(--border);
+      box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+      transition: left 0.3s ease;
+      display: flex; flex-direction: column;
+    }
+    .drawer.open { left: 0; }
+    .drawer h3 {
+      margin: 0; padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; background: var(--panel);
+    }
+    .drawer .close-btn { background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; padding: 0; }
+    .drawer .close-btn:hover { color: white; }
+
     /* Scrollbar Styling */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -243,26 +266,33 @@
 <body>
 
 <header>
-  <div class="brand">💬 Chat Tester</div>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <button id="btnOpenConfig" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--fg);" title="Identity & Setup">&#9776;</button>
+    <div class="brand">💬 Chat Tester</div>
+  </div>
   <input id="serverUrl" value="http://localhost:8080" style="min-width:280px" placeholder="Server URL" />
   <button id="btnConnect" class="primary">Connect</button>
   <div id="status" class="status">Disconnected</div>
 </header>
 
-<main>
-  <!-- Left Column: Identity & Rooms -->
-  <section>
-    <h3>Identity & Configuration</h3>
-    <div class="content">
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer" id="configDrawer">
+  <h3>Identity & Setup <button class="close-btn" id="btnCloseConfig">&times;</button></h3>
+  <div class="content">
       <div class="row">
         <label>Select Identity</label>
         <div class="flex-wrap" id="userPills"></div>
+        <div class="row horizontal" style="margin-top: 6px; gap: 8px;">
+          <input id="newUserName" placeholder="Name" style="flex: 1; min-width: 60px; font-size: 0.8rem; padding: 6px 10px;" />
+          <input id="newUserRowId" placeholder="UUID (optional)" style="flex: 2; font-size: 0.8rem; padding: 6px 10px;" />
+          <button id="btnAddUser" class="primary" style="padding: 6px 14px; font-size: 0.8rem; width: auto;">Add</button>
+        </div>
       </div>
 
       <div class="row horizontal">
         <div class="row" style="flex:1">
           <label>Your row_id</label>
-          <input id="rowId" readonly />
+          <input id="rowId" />
         </div>
         <button id="btnResetIds" title="Reset IDs to defaults">Reset</button>
       </div>
@@ -283,7 +313,11 @@
         <label>Create Direct Message (DM)</label>
         <div class="row horizontal">
           <select id="peerSelect" style="flex:1"></select>
-          <button id="btnCreateDM" class="primary">Create</button>
+          <button id="btnCreateDM" class="primary">Create DM</button>
+        </div>
+        <div id="customPeerFields" style="display:none; flex-direction:column; gap:6px; margin-top:6px;">
+          <input id="customPeerName" placeholder="Custom Peer Name" />
+          <input id="customPeerId" placeholder="Custom Peer Row ID (UUID)" />
         </div>
       </div>
 
@@ -299,14 +333,16 @@
           <button id="btnJoinRoom">Join</button>
         </div>
       </div>
+  </div>
+</div>
 
-      <div class="hr"></div>
-      
-      <div class="row" style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
-        <label>Available Rooms</label>
-        <div class="rooms-list" id="roomsList">
-          <div style="color:var(--muted); font-size:0.85rem; padding:10px;">No rooms loaded yet.</div>
-        </div>
+<main>
+  <!-- Left Column: Rooms -->
+  <section>
+    <h3>Available Rooms</h3>
+    <div class="content" style="padding:16px; flex:1;">
+      <div class="rooms-list" id="roomsList" style="flex:1; margin-top:0;">
+        <div style="color:var(--muted); font-size:0.85rem; padding:10px;">No rooms loaded yet.</div>
       </div>
     </div>
   </section>
@@ -540,6 +576,16 @@
       opt.textContent = u.name;
       peerSel.appendChild(opt);
     });
+
+    // Add Custom option
+    const optCustom = document.createElement('option');
+    optCustom.value = 'CUSTOM';
+    optCustom.textContent = '... Custom User ...';
+    peerSel.appendChild(optCustom);
+    
+    peerSel.addEventListener('change', (e) => {
+        el('customPeerFields').style.display = e.target.value === 'CUSTOM' ? 'flex' : 'none';
+    });
   }
 
   function resetIds() {
@@ -597,7 +643,8 @@
     hideTyping(); // Clear any stale typing states
     state.typingUsers.clear(); // Reset typers
     
-    emit('join room', { room_id: roomId, row_id: me.row_id, to_name: label || '', offset: 0, limit: 100 });
+    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    emit('join room', { room_id: roomId, row_id: me.row_id, project_id: proj, to_name: label || '', offset: 0, limit: 100 });
     
     // UI update for room selection
     document.querySelectorAll('.room').forEach(r => r.classList.remove('active'));
@@ -676,8 +723,12 @@
   function markRead(messageId) {
     const me = users[activeUser];
     if (!messageId || state.readSent.has(messageId)) return;
+    
+    const rid = state.currentRoomId;
+    if (!rid) return;
+
     state.readSent.add(messageId);
-    emit('message:read', { row_id: me.row_id, message_id: messageId });
+    emit('message:read', { row_id: me.row_id, room_id: rid });
   }
   
   function tryMarkRead(msg) {
@@ -714,21 +765,34 @@
 
   function pullRooms() {
     const me = users[activeUser];
-    emit('rooms list', { row_id: me.row_id, offset: 0, limit: 50 });
+    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    emit('rooms list', { row_id: me.row_id, project_id: proj, offset: 0, limit: 50 });
   }
 
   function createDM() {
     const me = users[activeUser];
     const peerName = el('peerSelect').value;
-    const peer = users[peerName];
     const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    
+    let toName = '';
+    let toRowId = '';
+
+    if (peerName === 'CUSTOM') {
+       toName = el('customPeerName').value.trim();
+       toRowId = el('customPeerId').value.trim();
+       if (!toName || !toRowId) { alert("Please enter custom peer name and valid UUID"); return; }
+    } else {
+       const peer = users[peerName];
+       toName = peer.name;
+       toRowId = peer.row_id;
+    }
 
     emit('create room', {
       row_id: me.row_id,
       project_id: proj,
       type: 'single',
-      to_row_id: peer.row_id,
-      to_name: peer.name,
+      to_row_id: toRowId,
+      to_name: toName,
       from_name: me.name
     });
   }
@@ -754,9 +818,12 @@
     if (!rid) { alert('Join a room first'); return; }
     if (!text) return;
 
+    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
     // Send chat message
     emit('chat message', {
       room_id: rid,
+      project_id: proj,
       from: me.name,
       author_row_id: me.row_id,
       content: text,
@@ -827,6 +894,13 @@
      }
   });
 
+  // Allow custom Row ID edit
+  el('rowId').addEventListener('input', (e) => {
+     if(users[activeUser]) {
+         users[activeUser].row_id = e.target.value.trim();
+     }
+  });
+
   // Handle incoming typing events
   function handleTypingEvent(data, isStart) {
      if (!data || !data.room_id) return;
@@ -866,6 +940,19 @@
   }
 
   // ---------- Bind Events ----------
+  el('btnOpenConfig').addEventListener('click', () => {
+      el('configDrawer').classList.add('open');
+      el('drawerOverlay').classList.add('open');
+  });
+  el('btnCloseConfig').addEventListener('click', () => {
+      el('configDrawer').classList.remove('open');
+      el('drawerOverlay').classList.remove('open');
+  });
+  el('drawerOverlay').addEventListener('click', () => {
+      el('configDrawer').classList.remove('open');
+      el('drawerOverlay').classList.remove('open');
+  });
+
   el('btnConnect').addEventListener('click', connect);
   el('btnConnected').addEventListener('click', doConnected);
   el('btnRoomsList').addEventListener('click', pullRooms);
@@ -875,6 +962,30 @@
   el('btnJoinRoom').addEventListener('click', joinRoomByInput);
   el('btnMarkRead').addEventListener('click', markReadManual);
   el('btnResetIds').addEventListener('click', resetIds);
+  el('btnAddUser').addEventListener('click', () => {
+     let name = el('newUserName').value.trim();
+     if (!name) { alert("Please enter a name"); return; }
+     let rid = el('newUserRowId').value.trim();
+     if (!rid) rid = crypto.randomUUID();
+     
+     users[name] = { name: name, row_id: rid };
+     activeUser = name;
+     
+     el('newUserName').value = '';
+     el('newUserRowId').value = '';
+     el('rowId').value = rid;
+     
+     renderUserPills();
+     
+     state.currentRoomId = null;
+     el('activeRoomLabel').textContent = 'Select a room';
+     el('messages').innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:50px; font-size:0.9rem;">Join a room to start messaging</div>';
+     el('msgInput').disabled = true;
+     el('btnSendMsg').disabled = true;
+     hideTyping();
+     
+     log('sys', `Manual user '${name}' added and selected.`);
+  });
 
   // Boot
   (function boot() {
