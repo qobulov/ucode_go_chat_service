@@ -676,11 +676,11 @@
   function appendMessage(msg) {
     const box = el('messages');
     
-    // Remove "no messages" text if it exists
-    if(box.innerHTML.includes('No messages yet')) box.innerHTML = '';
+    // Remove "no messages" or "Loading history" text if it exists
+    if(box.innerHTML.includes('No messages yet') || box.innerHTML.includes('Loading history')) box.innerHTML = '';
     
     const div = document.createElement('div');
-    const me = users[activeUser];
+    const me = users[activeUser] || { name: 'Unknown', row_id: '' };
 
     const from = msg.from || msg.From || '';
     const mid  = msg.id || msg.Id || msg.message_id || msg.MessageId;

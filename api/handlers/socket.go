@@ -50,6 +50,9 @@ func NewSocketHandler(io *socketio.Io, strg storage.StorageI, log *logger.Logger
 		sk.On("message:read", s.onMessageRead)
 		sk.On("message:update", s.onMessageUpdate)
 
+		sk.On("typing:start", s.onTypingStart)
+		sk.On("typing:stop", s.onTypingStop)
+
 		sk.On("disconnected", s.onDisconnection)
 	})
 }
@@ -655,4 +658,30 @@ func extractAttributes(reqMap map[string]any, key string) json.RawMessage {
 		}
 	}
 	return json.RawMessage("{}")
+}
+
+func (s *socket) onTypingStart(event *socketio.EventPayload) {
+	reqMap, ok := event.Data[0].(map[string]any)
+	if !ok {
+		return
+	}
+	roomId, _ := reqMap["room_id"].(string)
+	if roomId == "" {
+		return
+	}
+	// Broadcast typing start to everyone in the room
+	s.io.To(roomId).Emit("typing:start", reqMap)
+}
+
+func (s *socket) onTypingStop(event *socketio.EventPayload) {
+	reqMap, ok := event.Data[0].(map[string]any)
+	if !ok {
+		return
+	}
+	roomId, _ := reqMap["room_id"].(string)
+	if roomId == "" {
+		return
+	}
+	// Broadcast typing stop to everyone in the room
+	s.io.To(roomId).Emit("typing:stop", reqMap)
 }
