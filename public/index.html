@@ -270,7 +270,7 @@
     <button id="btnOpenConfig" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--fg);" title="Identity & Setup">&#9776;</button>
     <div class="brand">💬 Chat Tester</div>
   </div>
-  <input id="serverUrl" value="http://localhost:8080" style="min-width:280px" placeholder="Server URL" />
+  <input id="serverUrl" value="https://chat-service.u-code.io" style="min-width:280px" placeholder="Server URL" />
   <button id="btnConnect" class="primary">Connect</button>
   <div id="status" class="status">Disconnected</div>
 </header>
@@ -371,7 +371,11 @@
       </div>
 
       <div class="input-area">
-        <input id="msgInput" placeholder="Type a message..." autocomplete="off" disabled />
+        <button id="btnImgToggle" title="Send Image" style="padding: 10px; border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;">🖼️</button>
+        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+          <input id="msgInput" placeholder="Type a message..." autocomplete="off" disabled />
+          <input id="imgInput" placeholder="Paste Image URL here..." style="display:none; font-size:0.8rem; padding:8px 12px;" />
+        </div>
         <button id="btnSendMsg" class="primary" disabled>Send</button>
       </div>
       
@@ -440,7 +444,7 @@
 
   // ---------- Socket Connection ----------
   function connect() {
-    const url = el('serverUrl').value || 'http://localhost:8080';
+    const url = el('serverUrl').value || 'https://chat-service.u-code.io';
     if (socket?.connected) socket.disconnect();
     
     socket = io(url, {
@@ -692,8 +696,16 @@
     }
     
     const body = escapeHtml(msg.message || msg.Message || msg.content || msg.Content || '');
+    const type = msg.type || msg.Type || 'text';
+    const file = msg.file || msg.File || '';
 
     div.className = 'msg' + (mine ? ' mine' : '');
+    let bodyHtml = `<div class="body">${body}</div>`;
+    
+    if (type === 'image' && file) {
+       bodyHtml += `<div style="margin-top:8px;"><img src="${file}" style="max-width:100%; border-radius:8px; cursor:pointer;" onclick="window.open('${file}')" /></div>`;
+    }
+
     div.innerHTML = `
       <div class="meta">
         <strong style="color: ${mine ? '#22d3ee' : '#cbd5e1'}">${mine ? 'You' : (from || 'Unknown')}</strong>
@@ -701,7 +713,7 @@
         ${mid ? `<span class="mid" title="${mid}">#${mid.substring(0,8)}</span>` : ''}
         ${!mine && mid ? `<button class="readpill" data-mid="${mid}" title="Mark as Read">✓</button>` : ''}
       </div>
-      <div class="body">${body}</div>
+      ${bodyHtml}
     `;
     
     const btn = div.querySelector('button[data-mid]');
@@ -761,6 +773,9 @@
       }, 30000);
       log('sys', 'Presence heartbeat started (30s interval)');
     }
+
+    // Auto pull rooms
+    setTimeout(pullRooms, 500);
   }
 
   function pullRooms() {
@@ -814,11 +829,13 @@
     const rid = state.currentRoomId || el('joinRoomId').value.trim();
     const me  = users[activeUser];
     const text = el('msgInput').value.trim();
+    const fileUrl = el('imgInput').value.trim();
     
     if (!rid) { alert('Join a room first'); return; }
-    if (!text) return;
+    if (!text && !fileUrl) return;
 
     const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const type = fileUrl ? 'image' : 'text';
 
     // Send chat message
     emit('chat message', {
@@ -826,19 +843,21 @@
       project_id: proj,
       from: me.name,
       author_row_id: me.row_id,
-      content: text,
-      type: 'text',
-      file: '',
+      content: fileUrl ? (text || 'Sent an image') : text,
+      type: type,
+      file: fileUrl,
       parent_id: null
     });
     
     el('msgInput').value = '';
+    el('imgInput').value = '';
+    el('imgInput').style.display = 'none';
     
     // Stop typing indicator when message is sent
     clearTimeout(typingTimer);
     if(isTyping) {
        isTyping = false;
-       emit('typing:stop', { room_id: rid, user_name: me.name });
+       emit('typing:stop', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
     }
   }
 
@@ -868,12 +887,13 @@
     if (!rid) return;
     
     const me = users[activeUser];
+    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
     // Emit start if we weren't typing
     if (!isTyping) {
         isTyping = true;
         // Broadcasts to others in the room
-        emit('typing:start', { room_id: rid, user_name: me.name });
+        emit('typing:start', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
     }
 
     // Reset the timer
@@ -882,7 +902,7 @@
     // Set timer to stop typing
     typingTimer = setTimeout(() => {
         isTyping = false;
-        emit('typing:stop', { room_id: rid, user_name: me.name });
+        emit('typing:stop', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
     }, TYPING_DELAY);
   });
   
@@ -961,6 +981,11 @@
   el('btnSendMsg').addEventListener('click', sendMsg);
   el('btnJoinRoom').addEventListener('click', joinRoomByInput);
   el('btnMarkRead').addEventListener('click', markReadManual);
+  el('btnImgToggle').addEventListener('click', () => {
+      const isVisible = el('imgInput').style.display === 'block';
+      el('imgInput').style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) el('imgInput').focus();
+  });
   el('btnResetIds').addEventListener('click', resetIds);
   el('btnAddUser').addEventListener('click', () => {
      let name = el('newUserName').value.trim();

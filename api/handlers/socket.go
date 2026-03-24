@@ -669,6 +669,21 @@ func (s *socket) onTypingStart(event *socketio.EventPayload) {
 	if roomId == "" {
 		return
 	}
+
+	// Update presence on typing activity
+	rowId, _ := reqMap["row_id"].(string)
+	projectId, _ := reqMap["project_id"].(string)
+	if rowId != "" && projectId != "" {
+		ctx, cancel := s.ctx()
+		defer cancel()
+		now := time.Now().UTC()
+		_ = s.storage.Postgres().PresenceHeartbeat(ctx, &models.HeartbeatPresence{
+			RowId:     rowId,
+			ProjectId: projectId,
+			Now:       now,
+		})
+	}
+
 	// Broadcast typing start to everyone in the room
 	s.io.To(roomId).Emit("typing:start", reqMap)
 }
