@@ -19,10 +19,10 @@ func (r *postgresRepo) PresenceUpsert(ctx context.Context, req *models.UpsertPre
 
 	sqlStr, args, err := r.Db.Builder.
 		Insert("user_presence").
-		Columns("row_id", "status", "last_seen_at", "updated_at").
-		Values(req.RowId, req.Status, req.Now, req.Now).
+		Columns("row_id", "project_id", "status", "last_seen_at", "updated_at").
+		Values(req.RowId, req.ProjectId, req.Status, req.Now, req.Now).
 		Suffix(`
-			ON CONFLICT (row_id) DO UPDATE
+			ON CONFLICT (row_id, project_id) DO UPDATE
 			SET status = EXCLUDED.status,
 			    last_seen_at = EXCLUDED.last_seen_at,
 			    updated_at = EXCLUDED.updated_at
@@ -46,8 +46,8 @@ func (r *postgresRepo) PresenceHeartbeat(ctx context.Context, req *models.Heartb
 
 	sqlStr, args, err := r.Db.Builder.
 		Insert("user_presence").
-		Columns("row_id", "status", "last_seen_at", "updated_at").
-		Values(req.RowId, "online", req.Now, req.Now).
+		Columns("row_id", "project_id", "status", "last_seen_at", "updated_at").
+		Values(req.RowId, req.ProjectId, "online", req.Now, req.Now).
 		Suffix(`
 			ON CONFLICT (row_id, project_id) DO UPDATE
 			SET status = 'online',

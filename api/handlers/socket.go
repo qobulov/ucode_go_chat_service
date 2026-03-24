@@ -79,9 +79,10 @@ func (s *socket) onConnection(event *socketio.EventPayload) {
 
 	now := time.Now().UTC()
 	if err := s.storage.Postgres().PresenceUpsert(ctx, &models.UpsertPresence{
-		RowId:  params.RowId,
-		Status: "online",
-		Now:    now,
+		RowId:     params.RowId,
+		ProjectId: params.ProjectId,
+		Status:    "online",
+		Now:       now,
 	}); err != nil {
 		errMsg := "failed to update presence"
 		s.emitErr(event.Socket, sockErr{Function: "onConnection", Message: errMsg, Error: err.Error(), Request: reqMap})
@@ -454,9 +455,10 @@ func (s *socket) onPresenceConnected(event *socketio.EventPayload) {
 	now := time.Now().UTC()
 
 	err := s.storage.Postgres().PresenceUpsert(ctx, &models.UpsertPresence{
-		RowId:  params.RowId,
-		Status: "online",
-		Now:    now,
+		RowId:     params.RowId,
+		ProjectId: params.ProjectId,
+		Status:    "online",
+		Now:       now,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onPresenceConnected", Message: "failed to update presence", Error: err.Error(), Request: reqMap})
@@ -612,9 +614,10 @@ func (s *socket) onDisconnection(event *socketio.EventPayload) {
 	now := time.Now().UTC()
 
 	err := s.storage.Postgres().PresenceUpsert(ctx, &models.UpsertPresence{
-		RowId:  params.RowId,
-		Status: "offline",
-		Now:    now,
+		RowId:     params.RowId,
+		ProjectId: params.ProjectId,
+		Status:    "offline",
+		Now:       now,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onDisconnection", Message: "failed to update presence", Error: err.Error(), Request: reqMap})

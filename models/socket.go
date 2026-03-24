@@ -1,14 +1,16 @@
 package models
 
 type Connection struct {
-	RowId  string `json:"row_id"`
-	Type   string `json:"type"`
-	Offset uint64 `json:"offset"`
-	Limit  uint64 `json:"limit"`
+	RowId     string `json:"row_id"`
+	Type      string `json:"type"`
+    ProjectId string `json:"project_id"`
+	Offset    uint64 `json:"offset"`
+	Limit     uint64 `json:"limit"`
 }
 
 type Disconnection struct {
-	RowId string `json:"row_id"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
 }
 
 type JoinRoom struct {
@@ -55,7 +57,8 @@ type RoomsList struct {
 }
 
 type PresenceConnected struct {
-	RowId string `json:"row_id"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
 }
 
 type PresencePing struct {
