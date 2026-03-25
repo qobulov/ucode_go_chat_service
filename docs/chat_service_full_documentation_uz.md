@@ -131,6 +131,8 @@ Query paramlar:
 
 - `row_id` - majburiy
 - `type` - optional
+- `project_id` - optional, loyiha bo'yicha filter qilish
+- `search` - optional, user name yoki group name bo'yicha qidirish
 - `offset` - default `0`
 - `limit` - default `10`, max `100`
 
@@ -309,6 +311,12 @@ Faqat group roomlar:
 
 ```bash
 curl "http://localhost:8080/v1/room?row_id=48dc336f-17b6-4c0f-ad4b-d2e67b13ec2e&type=group&offset=0&limit=20"
+```
+
+Search (qidiruv) bilan:
+
+```bash
+curl "http://localhost:8080/v1/room?row_id=48dc336f-17b6-4c0f-ad4b-d2e67b13ec2e&search=Azizbek&project_id=592e6339-d867-489e-8e6a-74ea28e0818d"
 ```
 
 Success response misoli:

@@ -109,6 +109,7 @@ func (s *socket) onConnection(event *socketio.EventPayload) {
 		ProjectId: params.ProjectId,
 		Offset:    params.Offset,
 		Limit:     params.Limit,
+		Search:    params.Search,
 	})
 	if err != nil {
 		errMsg := "failed to load rooms"
@@ -339,6 +340,7 @@ func (s *socket) onRoomsList(event *socketio.EventPayload) {
 		ProjectId: params.ProjectId,
 		Offset:    params.Offset,
 		Limit:     params.Limit,
+		Search:    params.Search,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onRoomsList", Message: "failed to load rooms", Error: err.Error(), Request: reqMap})

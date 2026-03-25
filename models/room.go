@@ -53,6 +53,7 @@ type GetListRoomReq struct {
 	RowId     string `json:"row_id"`
 	Type      string `json:"type"`
 	ProjectId string `json:"project_id"`
+	Search    string `json:"search"`
 }
 
 type GetListRoomResp struct {

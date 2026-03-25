@@ -6,6 +6,7 @@ type Connection struct {
 	ProjectId string `json:"project_id"`
 	Offset    uint64 `json:"offset"`
 	Limit     uint64 `json:"limit"`
+	Search    string `json:"search"`
 }
 
 type Disconnection struct {
@@ -57,6 +58,7 @@ type RoomsList struct {
 	Type      string `json:"type"`
 	Offset    uint64 `json:"offset"`
 	Limit     uint64 `json:"limit"`
+	Search    string `json:"search"`
 }
 
 type PresenceConnected struct {

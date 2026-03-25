@@ -140,6 +140,12 @@ func (r *postgresRepo) RoomGetList(ctx context.Context, req *models.GetListRoomR
 	if req.ProjectId != "" {
 		builder = builder.Where(sq.Eq{"r.project_id": req.ProjectId})
 	}
+	if req.Search != "" {
+		builder = builder.Where(sq.Or{
+			sq.ILike{"rm.to_name": "%" + req.Search + "%"},
+			sq.ILike{"r.name": "%" + req.Search + "%"},
+		})
+	}
 
 	sqlStr, args, err := builder.ToSql()
 	if err != nil {
