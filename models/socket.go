@@ -1,29 +1,34 @@
 package models
 
 type Connection struct {
-	RowId  string `json:"row_id"`
-	Type   string `json:"type"`
-	Offset uint64 `json:"offset"`
-	Limit  uint64 `json:"limit"`
+	RowId     string `json:"row_id"`
+	Type      string `json:"type"`
+	ProjectId string `json:"project_id"`
+	Offset    uint64 `json:"offset"`
+	Limit     uint64 `json:"limit"`
+	Search    string `json:"search"`
 }
 
 type Disconnection struct {
-	RowId string `json:"row_id"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
 }
 
 type JoinRoom struct {
-	RoomId  string `json:"room_id"`
-	RowId   string `json:"row_id"`
-	Type    string `json:"type"`
-	ToName  string `json:"to_name"`
-	ToRowId any    `json:"to_row_id"`
-	Offset  uint64 `json:"offset"`
-	Limit   uint64 `json:"limit"`
+	RoomId    string `json:"room_id"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
+	Type      string `json:"type"`
+	ToName    string `json:"to_name"`
+	ToRowId   any    `json:"to_row_id"`
+	Offset    uint64 `json:"offset"`
+	Limit     uint64 `json:"limit"`
 }
 
 type ChatMessage struct {
 	Content     string `json:"content"`
 	RoomId      string `json:"room_id"`
+	ProjectId   string `json:"project_id"`
 	From        string `json:"from"`
 	Type        string `json:"type"`
 	File        string `json:"file"`
@@ -48,14 +53,17 @@ type UpdateMessage struct {
 }
 
 type RoomsList struct {
-	RowId  string `json:"row_id"`
-	Type   string `json:"type"`
-	Offset uint64 `json:"offset"`
-	Limit  uint64 `json:"limit"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
+	Type      string `json:"type"`
+	Offset    uint64 `json:"offset"`
+	Limit     uint64 `json:"limit"`
+	Search    string `json:"search"`
 }
 
 type PresenceConnected struct {
-	RowId string `json:"row_id"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
 }
 
 type PresencePing struct {

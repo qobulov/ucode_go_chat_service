@@ -82,12 +82,16 @@ func (h *handler) RoomGetList(c *gin.Context) {
 	}
 
 	typeParam := c.Query("type")
+	searchParam := c.Query("search")
+	projectIDParam := c.Query("project_id")
 
 	req := &models.GetListRoomReq{
-		Offset: uint64(offset),
-		Limit:  uint64(limit),
-		RowId:  rowId,
-		Type:   typeParam,
+		Offset:    uint64(offset),
+		Limit:     uint64(limit),
+		RowId:     rowId,
+		Type:      typeParam,
+		Search:    searchParam,
+		ProjectId: projectIDParam,
 	}
 
 	rooms, err := h.storage.Postgres().RoomGetList(

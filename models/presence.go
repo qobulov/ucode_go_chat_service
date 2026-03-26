@@ -9,9 +9,10 @@ type Presence struct {
 }
 
 type UpsertPresence struct {
-	RowId  string
-	Status string
-	Now    time.Time
+	RowId     string
+	ProjectId string
+	Status    string
+	Now       time.Time
 }
 
 type HeartbeatPresence struct {

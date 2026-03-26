@@ -50,6 +50,9 @@ func NewSocketHandler(io *socketio.Io, strg storage.StorageI, log *logger.Logger
 		sk.On("message:read", s.onMessageRead)
 		sk.On("message:update", s.onMessageUpdate)
 
+		sk.On("typing:start", s.onTypingStart)
+		sk.On("typing:stop", s.onTypingStop)
+
 		sk.On("disconnected", s.onDisconnection)
 	})
 }
@@ -79,9 +82,10 @@ func (s *socket) onConnection(event *socketio.EventPayload) {
 
 	now := time.Now().UTC()
 	if err := s.storage.Postgres().PresenceUpsert(ctx, &models.UpsertPresence{
-		RowId:  params.RowId,
-		Status: "online",
-		Now:    now,
+		RowId:     params.RowId,
+		ProjectId: params.ProjectId,
+		Status:    "online",
+		Now:       now,
 	}); err != nil {
 		errMsg := "failed to update presence"
 		s.emitErr(event.Socket, sockErr{Function: "onConnection", Message: errMsg, Error: err.Error(), Request: reqMap})
@@ -100,10 +104,12 @@ func (s *socket) onConnection(event *socketio.EventPayload) {
 	}
 
 	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-		RowId:  params.RowId,
-		Type:   reqType,
-		Offset: params.Offset,
-		Limit:  params.Limit,
+		RowId:     params.RowId,
+		Type:      reqType,
+		ProjectId: params.ProjectId,
+		Offset:    params.Offset,
+		Limit:     params.Limit,
+		Search:    params.Search,
 	})
 	if err != nil {
 		errMsg := "failed to load rooms"
@@ -162,10 +168,11 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 		}
 
 		items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-			RowId:  params.RowId,
-			Type:   reqType,
-			Offset: params.Offset,
-			Limit:  params.Limit,
+			RowId:     params.RowId,
+			Type:      reqType,
+			ProjectId: params.ProjectId,
+			Offset:    params.Offset,
+			Limit:     params.Limit,
 		})
 		if err == nil {
 			event.Socket.Emit("rooms list", items.Rooms)
@@ -218,10 +225,11 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 	}
 
 	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-		RowId:  params.RowId,
-		Type:   reqType,
-		Offset: params.Offset,
-		Limit:  params.Limit,
+		RowId:     params.RowId,
+		Type:      reqType,
+		ProjectId: params.ProjectId,
+		Offset:    params.Offset,
+		Limit:     params.Limit,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onCreateRoom", Message: "failed to fetch rooms list", Error: err.Error(), Request: reqMap})
@@ -293,10 +301,11 @@ func (s *socket) onJoinRoom(event *socketio.EventPayload) {
 	}
 
 	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-		RowId:  params.RowId,
-		Type:   reqType,
-		Offset: params.Offset,
-		Limit:  params.Limit,
+		RowId:     params.RowId,
+		Type:      reqType,
+		ProjectId: params.ProjectId,
+		Offset:    params.Offset,
+		Limit:     params.Limit,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onJoinRoom", Message: "failed to load rooms list", Error: err.Error(), Request: reqMap})
@@ -326,10 +335,12 @@ func (s *socket) onRoomsList(event *socketio.EventPayload) {
 	defer cancel()
 
 	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-		RowId:  params.RowId,
-		Type:   params.Type,
-		Offset: params.Offset,
-		Limit:  params.Limit,
+		RowId:     params.RowId,
+		Type:      params.Type,
+		ProjectId: params.ProjectId,
+		Offset:    params.Offset,
+		Limit:     params.Limit,
+		Search:    params.Search,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onRoomsList", Message: "failed to load rooms", Error: err.Error(), Request: reqMap})
@@ -421,10 +432,11 @@ func (s *socket) onChatMessage(event *socketio.EventPayload) {
 
 		for _, m := range members {
 			items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
-				RowId:  m.RowId,
-				Type:   reqType,
-				Offset: params.Offset,
-				Limit:  params.Limit,
+				RowId:     m.RowId,
+				Type:      reqType,
+				ProjectId: params.ProjectId,
+				Offset:    params.Offset,
+				Limit:     params.Limit,
 			})
 			if err == nil {
 				s.io.To(m.RowId).Emit("rooms list", items.Rooms)
@@ -454,9 +466,10 @@ func (s *socket) onPresenceConnected(event *socketio.EventPayload) {
 	now := time.Now().UTC()
 
 	err := s.storage.Postgres().PresenceUpsert(ctx, &models.UpsertPresence{
-		RowId:  params.RowId,
-		Status: "online",
-		Now:    now,
+		RowId:     params.RowId,
+		ProjectId: params.ProjectId,
+		Status:    "online",
+		Now:       now,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onPresenceConnected", Message: "failed to update presence", Error: err.Error(), Request: reqMap})
@@ -612,9 +625,10 @@ func (s *socket) onDisconnection(event *socketio.EventPayload) {
 	now := time.Now().UTC()
 
 	err := s.storage.Postgres().PresenceUpsert(ctx, &models.UpsertPresence{
-		RowId:  params.RowId,
-		Status: "offline",
-		Now:    now,
+		RowId:     params.RowId,
+		ProjectId: params.ProjectId,
+		Status:    "offline",
+		Now:       now,
 	})
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onDisconnection", Message: "failed to update presence", Error: err.Error(), Request: reqMap})
@@ -646,4 +660,45 @@ func extractAttributes(reqMap map[string]any, key string) json.RawMessage {
 		}
 	}
 	return json.RawMessage("{}")
+}
+
+func (s *socket) onTypingStart(event *socketio.EventPayload) {
+	reqMap, ok := event.Data[0].(map[string]any)
+	if !ok {
+		return
+	}
+	roomId, _ := reqMap["room_id"].(string)
+	if roomId == "" {
+		return
+	}
+
+	// Update presence on typing activity
+	rowId, _ := reqMap["row_id"].(string)
+	projectId, _ := reqMap["project_id"].(string)
+	if rowId != "" && projectId != "" {
+		ctx, cancel := s.ctx()
+		defer cancel()
+		now := time.Now().UTC()
+		_ = s.storage.Postgres().PresenceHeartbeat(ctx, &models.HeartbeatPresence{
+			RowId:     rowId,
+			ProjectId: projectId,
+			Now:       now,
+		})
+	}
+
+	// Broadcast typing start to everyone in the room
+	s.io.To(roomId).Emit("typing:start", reqMap)
+}
+
+func (s *socket) onTypingStop(event *socketio.EventPayload) {
+	reqMap, ok := event.Data[0].(map[string]any)
+	if !ok {
+		return
+	}
+	roomId, _ := reqMap["room_id"].(string)
+	if roomId == "" {
+		return
+	}
+	// Broadcast typing stop to everyone in the room
+	s.io.To(roomId).Emit("typing:stop", reqMap)
 }
