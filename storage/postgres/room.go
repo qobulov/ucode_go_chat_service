@@ -90,7 +90,7 @@ func (r *postgresRepo) RoomGetSingle(ctx context.Context, req *models.GetSingleR
 }
 
 func (r *postgresRepo) RoomGetList(ctx context.Context, req *models.GetListRoomReq) (*models.GetListRoomResp, error) {
-	res := &models.GetListRoomResp{}
+	res := &models.GetListRoomResp{Rooms: make([]*models.Room, 0)}
 
 	builder := r.Db.Builder.
 		Select(
@@ -111,6 +111,7 @@ func (r *postgresRepo) RoomGetList(ctx context.Context, req *models.GetListRoomR
 			"lm.created_at AS last_message_created_at",
 			"up.status AS user_presence_status",
 			"up.last_seen_at AS user_presence_last_seen_at",
+			"(SELECT COUNT(*) FROM room_members rm2 WHERE rm2.room_id = r.id) AS member_count",
 			"COUNT(*) OVER()",
 		).
 		From("rooms r").
@@ -128,7 +129,16 @@ func (r *postgresRepo) RoomGetList(ctx context.Context, req *models.GetListRoomR
                 ORDER BY m.room_id, m.created_at DESC
             ) AS lm ON lm.room_id = r.id
         `).
-		LeftJoin("user_presence up ON up.row_id = rm.to_row_id").
+		LeftJoin(`
+            (
+                SELECT DISTINCT ON (row_id)
+                    row_id,
+                    status,
+                    last_seen_at
+                FROM user_presence
+                ORDER BY row_id, last_seen_at DESC
+            ) AS up ON up.row_id = rm.to_row_id
+        `).
 		Where(sq.Eq{"rm.row_id": req.RowId}).
 		OrderBy("r.updated_at DESC").
 		Limit(req.Limit).
@@ -186,6 +196,7 @@ func (r *postgresRepo) RoomGetList(ctx context.Context, req *models.GetListRoomR
 			&lastMessageCreatedAt,
 			&userPresenceStatus,
 			&userPresenceLastSeen,
+			&room.MemberCount,
 			&totalCnt,
 		); err != nil {
 			return nil, HandleDatabaseError(err, r.Log, "RoomGetList: row scan")

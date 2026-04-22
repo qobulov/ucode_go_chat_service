@@ -897,6 +897,12 @@ Payloaddagi `type` bo'sh bo'lsa:
 
 - ham `single`, ham `group` qaytadi
 
+Muhim (client uchun):
+
+- Socket event `rooms list` ba'zan `null` payload bilan kelishi mumkin (Go tomonda `nil` slice JSONga `null` bo'lib ketadi).
+- `null` payloadni client `[]` deb qabul qilib ro'yxatni tozalamasin. Eng to'g'ri yondashuv: `null` bo'lsa "no update" deb ignore qilish yoki oldingi listni saqlab qolish.
+- Amaliyotda ba'zi holatlarda bir xil `room_id` bir necha marta kelib qolishi mumkin (masalan DBda `room_members(room_id,row_id)` unique constraint qo'llanmagan yoki tarixiy duplicate data qolgan bo'lsa). Client `room_id` bo'yicha dedup qilib render qilishi tavsiya etiladi.
+
 ### 11.5 `room history`
 
 Vazifasi:
@@ -927,6 +933,25 @@ Oqim:
 3. `chat message` roomga emit qilinadi
 4. room memberlari topiladi
 5. har member uchun `rooms list` qayta hisoblanib push qilinadi
+
+Muhim aniqlik:
+
+- `chat message` payloadidagi `type` bu message type (`text`, `image`, `voice`, `file`).
+- Room list filteridagi `type` esa room type (`single`, `group`).
+- Bu ikkalasini aralashtirish mumkin emas.
+- Backend `chat message` dan keyin `rooms list`ni qayta push qiladi, lekin bu push client avval yuborgan custom filterlarni to'liq qayta tiklab bermasligi mumkin.
+
+Noto'g'ri misol:
+
+- `type: "text"` yuborib, backenddan shu `type` bilan room listni `single/group` kabi filter qilishni kutish.
+
+Amaliy natija:
+
+- Agar client chat oynasida kelgan generic `rooms list` eventini filtered UI state ustiga ko'r-ko'rona yozsa, roomlar vaqtincha "yo'qolib qolgandek" ko'rinishi mumkin.
+- To'g'ri client flow:
+- chat ichida `chat message` eventidan message listni yangilang
+- `rooms list` eventini esa global room store uchun ishlating yoki kerak bo'lsa o'z filteringiz bilan qayta ishlang
+- agar UI maxsus filter bilan ishlayotgan bo'lsa, `GET /v1/room` yoki `rooms list`ni shu filter mantig'i bilan client tomonda qayta hisoblang
 
 ### 11.7 `message:read`
 
@@ -1534,3 +1559,295 @@ Kod oldini olishga harakat qiladi, lekin DB unique index yo'qligi sabab race hol
 ### Room list oxirgi message bo'yicha sort bo'ladimi
 
 To'liq emas, chunki `rooms.updated_at` yangi message bilan update qilinmaydi.
+
+## 30. Amaliy API Cookbook (Request/Response/curl)
+
+Bu bo'lim faqat amaliy ishlatish uchun: copy-paste `curl` va kutiladigan javoblar.
+
+### 30.1 Tayyor env
+
+```bash
+BASE_URL="https://chat-service.u-code.io"
+PROJECT_ID="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+ME="11111111-1111-1111-1111-111111111111"
+PEER="22222222-2222-2222-2222-222222222222"
+```
+
+### 30.2 DM room yaratish (`POST /v1/room`)
+
+```bash
+curl -sS -X POST "$BASE_URL/v1/room" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"name\": \"\",
+    \"type\": \"single\",
+    \"project_id\": \"$PROJECT_ID\",
+    \"row_id\": \"$ME\",
+    \"to_name\": \"Porthos\",
+    \"to_row_id\": \"$PEER\",
+    \"from_name\": \"Athos\"
+  }"
+```
+
+Kutiladigan response (shape):
+
+```json
+{
+  "body": {
+    "id": "room-uuid",
+    "name": "",
+    "type": "single",
+    "project_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "created_at": "Mon, 20 Apr 2026 10:00:00 UTC",
+    "updated_at": "Mon, 20 Apr 2026 10:00:00 UTC"
+  },
+  "error": ""
+}
+```
+
+Nima bo'ladi:
+
+1. `rooms` jadvalida 1 ta room ochiladi.
+2. `room_members`ga creator qo'shiladi.
+3. `to_row_id` berilgan bo'lsa ikkinchi user ham member bo'ladi.
+
+### 30.3 Room list olish (`GET /v1/room`)
+
+```bash
+curl -sS "$BASE_URL/v1/room?row_id=$ME&project_id=$PROJECT_ID&offset=0&limit=20"
+```
+
+Kutiladigan response (shape):
+
+```json
+{
+  "body": {
+    "count": 1,
+    "rooms": [
+      {
+        "id": "room-uuid",
+        "type": "single",
+        "to_name": "Porthos",
+        "last_message": "Salom",
+        "unread_message_count": 2,
+        "user_presence_status": "online"
+      }
+    ]
+  },
+  "error": ""
+}
+```
+
+Nima bo'ladi:
+
+1. Faqat berilgan `row_id`ga tegishli roomlar qaytadi.
+2. Last message, unread va presence kabi agregat fieldlar ham qaytadi.
+
+### 30.4 Room mavjudligini tekshirish (`POST /v1/room/exist`)
+
+```bash
+curl -sS -X POST "$BASE_URL/v1/room/exist" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"type\": \"single\",
+    \"project_id\": \"$PROJECT_ID\",
+    \"row_id\": \"$ME\",
+    \"to_row_id\": \"$PEER\"
+  }"
+```
+
+Kutiladigan response:
+
+```json
+{
+  "body": "room-uuid-or-empty-string",
+  "error": ""
+}
+```
+
+Nima bo'ladi:
+
+1. `single` bo'lsa `project_id + row_id + to_row_id` bo'yicha tekshiradi.
+2. Topsa room id qaytadi, topmasa bo'sh string.
+
+### 30.5 Item bo'yicha room id (`GET /v1/room/:item_id`)
+
+```bash
+ITEM_ID="2cebed90-9fc3-4e90-82e6-11727762dfc5"
+curl -sS "$BASE_URL/v1/room/$ITEM_ID?project_id=$PROJECT_ID"
+```
+
+Kutiladigan response:
+
+```json
+{
+  "body": { "room_id": "room-uuid" },
+  "error": ""
+}
+```
+
+### 30.6 Room member qo'shish (`POST /v1/room-member`)
+
+```bash
+ROOM_ID="room-uuid"
+NEW_MEMBER="33333333-3333-3333-3333-333333333333"
+
+curl -sS -X POST "$BASE_URL/v1/room-member" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"room_id\": \"$ROOM_ID\",
+    \"row_id\": \"$NEW_MEMBER\",
+    \"to_name\": \"Aramis\",
+    \"to_row_id\": \"$NEW_MEMBER\",
+    \"attributes\": {\"role\": \"member\"}
+  }"
+```
+
+Kutiladigan response (shape):
+
+```json
+{
+  "body": {
+    "id": "room-member-uuid",
+    "room_id": "room-uuid",
+    "row_id": "33333333-3333-3333-3333-333333333333"
+  },
+  "error": ""
+}
+```
+
+### 30.7 Message history (`GET /v1/message`)
+
+```bash
+curl -sS "$BASE_URL/v1/message?room_id=$ROOM_ID&offset=0&limit=50"
+```
+
+Kutiladigan response (shape):
+
+```json
+{
+  "body": {
+    "count": 2,
+    "messages": [
+      {
+        "id": "msg-uuid",
+        "room_id": "room-uuid",
+        "message": "Salom",
+        "type": "text",
+        "from": "Athos",
+        "author_row_id": "11111111-1111-1111-1111-111111111111",
+        "created_at": "Mon, 20 Apr 2026 10:10:00 UTC"
+      }
+    ]
+  },
+  "error": ""
+}
+```
+
+### 30.8 Error misol
+
+```bash
+curl -sS "$BASE_URL/v1/room?project_id=$PROJECT_ID"
+```
+
+Kutiladigan response:
+
+```json
+{
+  "body": null,
+  "error": "Row is required"
+}
+```
+
+
+## 31. Qaysi Flowda REST, Qaysi Flowda Socket Ishlatiladi
+
+Bu bo'lim eng muhim amaliy qoida uchun: chat ekranida qaysi API qachon ishlatilishi kerak.
+
+### 31.1 Qisqa qoida
+
+- Real-time chat oqimi uchun asosiy kanal: `Socket`
+- Backoffice/debug/fallback uchun: `REST`
+- DM ochishda duplicate oldini olish uchun: `socket create room` yoki `REST /v1/room/exist + create`
+- `POST /v1/room` ni har kirishda to'g'ridan-to'g'ri chaqirish mumkin emas
+
+### 31.2 Nima uchun
+
+`POST /v1/room` (REST) endpointi roomni to'g'ridan-to'g'ri yaratadi.
+Agar har safar chatga kirganda shu endpoint chaqirilsa, har safar yangi room ochilib ketadi.
+
+Duplicate-safe tekshiruv asosan socket `create room` ichida bor (`RoomExists` orqali).
+
+### 31.3 To'g'ri DM flow (tavsiya etilgan)
+
+1. Socket ulanadi.
+2. `connected` yuboriladi.
+3. DM ochishda `create room` (socket) yuboriladi:
+
+```json
+{
+  "row_id": "my-row-id",
+  "project_id": "project-id",
+  "type": "single",
+  "to_row_id": "peer-row-id",
+  "to_name": "Peer Name",
+  "from_name": "My Name"
+}
+```
+
+4. Server ikki holatdan birini qaytaradi:
+- mavjud room bo'lsa `check room` (`room_id`)
+- yangi room bo'lsa `rooms list` yangilanadi
+
+5. `check room` kelishi bilan `join room` yuboriladi.
+6. `room history` keladi, chat ochiladi.
+7. Xabar yuborish: `chat message`.
+8. O'qilgan status: `message:read`.
+
+### 31.4 Agar REST bilan ishlash majbur bo'lsa
+
+DM uchun quyidagicha qiling:
+
+1. `POST /v1/room/exist` bilan tekshiring.
+2. Agar `body` ichida `room_id` bo'lsa, `POST /v1/room` qilmang, shu roomga kiring.
+3. Agar bo'sh string bo'lsa, keyin `POST /v1/room` qiling.
+
+Ya'ni `GET rooms -> POST /v1/room` to'g'ridan-to'g'ri zanjir noto'g'ri.
+
+### 31.5 Qaysi endpoint/event qachon ishlatiladi
+
+- App ochildi: `socket connected` + `connected`
+- Roomlar ro'yxati: `rooms list` (socket), fallback `GET /v1/room`
+- DM ochish: `create room` (socket)
+- Group ochish: `create room` (socket) yoki controlled REST flow
+- Roomga kirish: `join room`
+- History: `room history` (socket) yoki `GET /v1/message`
+- Xabar yuborish: `chat message`
+- Agar xabar yuborgandan keyin room list filtered ko'rinishda saqlanishi kerak bo'lsa, client `rooms list` eventini o'z filter mantig'i bilan qayta ishlaydi
+- Read: `message:read`
+- Presence heartbeat: `presence:ping`
+
+### 31.6 Noto'g'ri va to'g'ri pattern
+
+Noto'g'ri pattern:
+
+1. Chat screen open
+2. `GET /v1/room`
+3. Har holatda `POST /v1/room`
+
+Natija: duplicate roomlar ko'payadi.
+
+To'g'ri pattern:
+
+1. Chat screen open
+2. `socket create room`
+3. `check room` bo'lsa `join room`
+4. bo'lmasa server yaratgan roomga `join room`
+
+### 31.7 Minimal anti-duplicate checklist
+
+1. DM create callidan oldin `from_name` ni bo'sh yubormang.
+2. Har ochilganda `POST /v1/room` qilmang.
+3. Socket `check room` eventini albatta handle qiling.
+4. `create room` actionini idempotent qiling (UIda double tapni bloklang).
+5. Reconnectdan keyin room create emas, faqat `join room`/`rooms list` qiling.

@@ -425,15 +425,9 @@ func (s *socket) onChatMessage(event *socketio.EventPayload) {
 
 	members, err := s.storage.Postgres().RoomMembersByRoomId(ctx, params.RoomId)
 	if err == nil {
-		reqType := ""
-		if typeVal, ok := reqMap["type"].(string); ok {
-			reqType = typeVal
-		}
-
 		for _, m := range members {
 			items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
 				RowId:     m.RowId,
-				Type:      reqType,
 				ProjectId: params.ProjectId,
 				Offset:    params.Offset,
 				Limit:     params.Limit,
@@ -581,6 +575,20 @@ func (s *socket) onMessageRead(event *socketio.EventPayload) {
 		"by":      params.RowId,
 		"read_at": resp.ReadAt,
 	})
+
+	room, err := s.storage.Postgres().RoomGetSingle(ctx, &models.GetSingleRoom{Id: resp.RoomId})
+	if err != nil {
+		return
+	}
+
+	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
+		RowId:     params.RowId,
+		ProjectId: room.ProjectId,
+		Limit:     params.Limit,
+	})
+	if err == nil {
+		event.Socket.Emit("rooms list", items.Rooms)
+	}
 }
 
 func (s *socket) onMessageUpdate(event *socketio.EventPayload) {
@@ -672,7 +680,6 @@ func (s *socket) onTypingStart(event *socketio.EventPayload) {
 		return
 	}
 
-	// Update presence on typing activity
 	rowId, _ := reqMap["row_id"].(string)
 	projectId, _ := reqMap["project_id"].(string)
 	if rowId != "" && projectId != "" {
@@ -684,9 +691,14 @@ func (s *socket) onTypingStart(event *socketio.EventPayload) {
 			ProjectId: projectId,
 			Now:       now,
 		})
+		s.io.Emit("presence.updated", map[string]any{
+			"row_id":       rowId,
+			"status":       "online",
+			"last_seen_at": now,
+			"project_id":   projectId,
+		})
 	}
 
-	// Broadcast typing start to everyone in the room
 	s.io.To(roomId).Emit("typing:start", reqMap)
 }
 
