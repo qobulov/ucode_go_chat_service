@@ -232,6 +232,23 @@
       text-align: center;
     }
 
+    .btn-delete-room {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(251,113,133,.35);
+      background: rgba(251,113,133,.12);
+      color: var(--danger);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.12s;
+      flex-shrink: 0;
+    }
+    .btn-delete-room:hover { background: rgba(251,113,133,.28); transform: scale(1.1); }
+    .room-item:hover .btn-delete-room { display: flex; }
+
     .empty-state {
       padding: 40px 16px;
       text-align: center;
@@ -812,6 +829,23 @@
       updatePresenceDot(p);
     });
     socket.on('message.read', p => log('ev', '⬅️ message.read', p));
+    socket.on('room.deleted', data => {
+      log('ev', '⬅️ room.deleted', data);
+      const rid = data?.room_id;
+      if (!rid) return;
+      state.messages.delete(rid);
+      if (state.currentRoomId === rid) {
+        state.currentRoomId = null;
+        el('chatName').textContent = 'Select a room';
+        el('chatSub').textContent = '';
+        el('chatAvatar').style.display = 'none';
+        el('messages').innerHTML = '<div class="empty-state" style="margin-top:60px;">Select a room to start chatting</div>';
+        el('msgInput').disabled = true;
+        el('btnSend').disabled = true;
+        el('typingBar').style.display = 'none';
+      }
+      pullRooms();
+    });
     socket.on('error', e => log('err', '❌ error', e));
   }
 
@@ -903,7 +937,12 @@
         <div class="room-meta">
           <span class="room-time">${time}</span>
           ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
+          <button class="btn-delete-room" title="Delete room">🗑</button>
         </div>`;
+      div.querySelector('.btn-delete-room').onclick = e => {
+        e.stopPropagation();
+        deleteRoom(r.id);
+      };
       div.onclick = () => joinRoom(r.id, r);
       list.appendChild(div);
     });
@@ -1094,6 +1133,13 @@
   function createStaticGroup() {
     const proj = el('projectId').value;
     emit('create room', { name:'', type:'group', row_id:'0102f522-6372-41e2-89b7-109a3d3a0a3b', item_id:'2cebed90-9fc3-4e90-82e6-11727762dfc5', from_name:'asdfasdfAA!1', project_id: proj, to_name:'#23452345234' });
+  }
+
+  function deleteRoom(roomId) {
+    if (!confirm('Delete this room?')) return;
+    const me = users[activeUser];
+    const proj = el('projectId').value;
+    emit('delete room', { room_id: roomId, row_id: me.row_id, project_id: proj });
   }
 
   function sendMsg() {
