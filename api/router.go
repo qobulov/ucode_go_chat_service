@@ -46,6 +46,7 @@ func New(log *logger.Logger, cfg config.Config, strg storage.StorageI) *gin.Engi
 	room.GET("", h.RoomGetList)
 	room.POST("/exist", h.RoomExists)
 	room.GET("/:item_id", h.RoomIdByItemId)
+	room.DELETE("/:id", h.RoomDelete)
 
 	roomMember := api.Group("/room-member")
 	roomMember.POST("", h.RoomMemberCreate)

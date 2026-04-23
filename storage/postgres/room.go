@@ -327,6 +327,23 @@ func (r *postgresRepo) UnreadCountInRoom(ctx context.Context, req *models.Unread
 	return resp, nil
 }
 
+func (r *postgresRepo) RoomDelete(ctx context.Context, id string) error {
+	sqlStr, args, err := r.Db.Builder.
+		Delete("rooms").
+		Where(sq.Eq{"id": id}).
+		ToSql()
+	if err != nil {
+		return HandleDatabaseError(err, r.Log, "RoomDelete: build sql")
+	}
+
+	_, err = r.Db.Pg.Exec(ctx, sqlStr, args...)
+	if err != nil {
+		return HandleDatabaseError(err, r.Log, "RoomDelete: exec")
+	}
+
+	return nil
+}
+
 func (r *postgresRepo) RoomIdByItemId(ctx context.Context, req *models.GetRoomIdByItemIdReq) (*models.GetRoomIdByItemIdResp, error) {
 	var (
 		roomId sql.NullString

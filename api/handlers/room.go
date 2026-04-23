@@ -125,6 +125,22 @@ func (h *handler) RoomExists(c *gin.Context) {
 	handleResponse(c, http.StatusOK, resp)
 }
 
+func (h *handler) RoomDelete(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		handleResponse(c, http.StatusBadRequest, "id is required")
+		return
+	}
+
+	err := h.storage.Postgres().RoomDelete(c.Request.Context(), id)
+	if err != nil {
+		handleResponse(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	handleResponse(c, http.StatusOK, "room deleted")
+}
+
 func (h *handler) RoomIdByItemId(c *gin.Context) {
 	itemId := c.Param("item_id")
 	if itemId == "" {

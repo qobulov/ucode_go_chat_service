@@ -94,6 +94,7 @@ HTTP route'lar:
 - `GET /v1/room`
 - `POST /v1/room/exist`
 - `GET /v1/room/:item_id`
+- `DELETE /v1/room/:id`
 - `POST /v1/room-member`
 - `GET /v1/message`
 - `ANY /socket.io/*any`
@@ -167,6 +168,20 @@ Query:
 Natija:
 
 - shu `item_id + project_id` uchun room id
+
+#### `DELETE /v1/room/:id`
+
+Vazifasi:
+
+- roomni bazadan o'chirish
+
+Path param:
+
+- `id` - o'chiriladigan room UUID
+
+Response:
+
+- `200`
 
 #### `POST /v1/room-member`
 
@@ -343,6 +358,7 @@ Success response misoli:
         "last_message_from": "+998995002065",
         "last_message_created_at": "Mon, 17 Mar 2026 10:05:00 UTC",
         "unread_message_count": 1,
+        "member_count": 2,
         "user_presence_status": "online",
         "user_presence_last_seen": "Mon, 17 Mar 2026 10:05:10 UTC"
       }
@@ -471,6 +487,28 @@ Response:
   "error": "project_id is required"
 }
 ```
+
+#### `DELETE /v1/room/:id` - roomni o'chirish
+
+Misol:
+
+```bash
+curl -X DELETE http://localhost:8080/v1/room/f3f95d20-5fc4-4cf9-a8df-65de2d0cb8ea
+```
+
+Success response:
+
+```json
+{
+  "body": "room deleted",
+  "error": ""
+}
+```
+
+Xato holatlar:
+
+- `id` bo'sh bo'lsa `400`
+- DB xato bo'lsa `500`
 
 #### `POST /v1/room-member` - roomga member qo'shish
 
@@ -1112,6 +1150,7 @@ Clientga qaytadigan room object ichida shular bo'ladi:
 - `last_message_from`
 - `last_message_created_at`
 - `unread_message_count`
+- `member_count` — xonadagi a'zolar soni (group uchun ayniqsa foydali)
 - `user_presence_status`
 - `user_presence_last_seen`
 
@@ -1630,6 +1669,7 @@ Kutiladigan response (shape):
         "to_name": "Porthos",
         "last_message": "Salom",
         "unread_message_count": 2,
+        "member_count": 2,
         "user_presence_status": "online"
       }
     ]

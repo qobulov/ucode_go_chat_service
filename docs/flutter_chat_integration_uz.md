@@ -550,6 +550,21 @@ final res = await dio.get(
 final rooms = res.data['body']['rooms'];
 ```
 
+Har bir room objectida quyidagi maydonlar keladi:
+
+| Maydon | Tur | Izoh |
+|--------|-----|------|
+| `id` | String | Room UUID |
+| `type` | String | `"single"` yoki `"group"` |
+| `to_name` | String | DM da qarshi taraf ismi |
+| `last_message` | String | Oxirgi xabar matni |
+| `last_message_from` | String | Oxirgi xabar yuboruvchi ismi |
+| `last_message_created_at` | String | Oxirgi xabar vaqti |
+| `unread_message_count` | int | O'qilmagan xabarlar soni |
+| `member_count` | int | Xonadagi a'zolar soni (group uchun ayniqsa foydali) |
+| `user_presence_status` | String | `"online"` yoki `"offline"` |
+| `user_presence_last_seen` | String | Oxirgi online vaqti |
+
 ### 21.2 Message historyni curl bilan tekshirish
 
 ```bash
@@ -884,6 +899,7 @@ Flutter merge qoidasi:
 ### 25.7 Unread + read behavior
 
 - Room listda `unread_message_count` keladi.
+- Room listda `member_count` keladi — group xonalar uchun a'zolar sonini ko'rsatishda ishlating (masalan: "12 a'zo").
 - Chat ochilganda visible xabarlar uchun `message:read` yuboring.
 - `message.read` event kelganda message statusni seen qilib yangilang.
 
@@ -942,6 +958,7 @@ Future<String> openDm({required String peerRowId, required String peerName}) asy
 6. Pagination duplicate-safe merge bilan ishlaydi.
 7. Reconnectdan keyin create emas, join/list ishlatiladi.
 8. `attributes.profiles[row_id]` bilan avatar/name chiqariladi.
+9. Group xonalarda `member_count` orqali a'zolar soni ko'rsatiladi.
 
 ## 26. Last Online (`last_seen_at`) ni Flutterda ko'rsatish
 
