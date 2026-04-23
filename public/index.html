@@ -2,484 +2,793 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Chat Tester — Static Users</title>
+  <title>Chat Tester</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     :root {
-      /* Modern Dark Theme */
-      --bg: #0f172a;           /* slate-900 */
-      --panel: #1e293b;        /* slate-800 */
-      --panel-hover: #334155;  /* slate-700 */
-      --muted: #94a3b8;        /* slate-400 */
-      --fg: #f8fafc;           /* slate-50 */
-      --accent: #3b82f6;       /* blue-500 */
-      --accent-hover: #2563eb; /* blue-600 */
-      --success: #10b981;      /* emerald-500 */
-      --border: #334155;       /* slate-700 */
-      --chip: #0f172a;         /* slate-900 */
-      --danger: #ef4444;       /* red-500 */
-      --msg-mine: #164e63;     /* cyan-900 */
-      --msg-other: #1e293b;    /* slate-800 */
+      --bg0:          #070A12;
+      --bg1:          #0B1020;
+      --panel:        rgba(16, 24, 44, 0.72);
+      --panel-solid:  #10182C;
+      --panel-hover:  rgba(28, 44, 80, 0.55);
+      --muted:        rgba(203, 213, 225, 0.55);
+      --muted-light:  rgba(226, 232, 240, 0.68);
+      --fg:           #EEF2FF;
+      --accent:       #2DD4BF;
+      --accent2:      #60A5FA;
+      --accent-hover: #22C55E;
+      --success:      #22C55E;
+      --danger:       #FB7185;
+      --border:       rgba(148, 163, 184, 0.20);
+      --border-2:     rgba(148, 163, 184, 0.28);
+      --shadow:       0 18px 55px rgba(0,0,0,0.55);
+      --shadow-soft:  0 10px 30px rgba(0,0,0,0.35);
+      --msg-mine:     rgba(17, 56, 60, 0.85);
+      --msg-other:    rgba(16, 24, 44, 0.78);
+      --online:       #22C55E;
+      --offline:      rgba(148, 163, 184, 0.40);
+      --radius:       18px;
     }
-    
-    * { box-sizing: border-box; }
-    
-    body { 
-      margin: 0; 
-      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; 
-      background: var(--bg); 
-      color: var(--fg); 
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Space Grotesk', system-ui, -apple-system, Segoe UI, sans-serif;
+      background: radial-gradient(1200px 800px at 10% 10%, rgba(96,165,250,.18), transparent 55%),
+                  radial-gradient(900px 700px at 85% 20%, rgba(45,212,191,.16), transparent 60%),
+                  radial-gradient(1100px 900px at 40% 110%, rgba(34,197,94,.12), transparent 60%),
+                  linear-gradient(180deg, var(--bg0), var(--bg1));
+      color: var(--fg);
       height: 100vh;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
-    
-    /* Header */
-    header { 
-      padding: 16px 24px; 
-      background: var(--panel);
-      border-bottom: 1px solid var(--border); 
-      display: flex; 
-      gap: 16px; 
-      align-items: center; 
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 1px 1px, rgba(226,232,240,0.08) 1px, transparent 0);
+      background-size: 22px 22px;
+      opacity: 0.35;
+      mix-blend-mode: overlay;
+    }
+
+    /* ── Header ── */
+    header {
+      height: 56px;
+      padding: 0 20px;
+      background: linear-gradient(180deg, rgba(16,24,44,0.88), rgba(16,24,44,0.68));
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
       z-index: 10;
     }
-    
-    header .brand { font-weight: 700; font-size: 1.1rem; color: var(--fg); margin-right: auto; }
-    
-    input, select, button {
+
+    .brand {
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.2px;
+      margin-right: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand::before {
+      content: "💬";
+      font-size: 1.05rem;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));
+    }
+
+    header input {
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 7px 12px;
+      background: rgba(7,10,18,0.55);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      outline: none;
+      min-width: 260px;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    }
+    header input:focus { border-color: rgba(96,165,250,0.65); background: rgba(7,10,18,0.75); transform: translateY(-1px); }
+
+    .btn {
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 7px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(28,44,80,0.35);
+      color: var(--fg);
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s, transform 0.12s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: rgba(28,44,80,0.55); border-color: var(--border-2); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(45,212,191,0.95), rgba(96,165,250,0.90));
+      border-color: rgba(96,165,250,0.35);
+      color: #06121D;
+      font-weight: 700;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.25);
+      box-shadow: 0 12px 26px rgba(45,212,191,0.18);
+    }
+    .btn-primary:hover { background: linear-gradient(135deg, rgba(34,197,94,0.95), rgba(96,165,250,0.92)); }
+    .btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+
+    .badge-status {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(251,113,133,.12);
+      color: rgba(251,113,133,0.95);
+      border: 1px solid rgba(251,113,133,.25);
+    }
+    .badge-status.connected {
+      background: rgba(34,197,94,.12);
+      color: rgba(34,197,94,0.95);
+      border-color: rgba(34,197,94,.25);
+    }
+
+    /* ── Layout ── */
+    main {
+      display: grid;
+      grid-template-columns: 300px 1fr 320px;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Rooms Panel ── */
+    .rooms-panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(16,24,44,0.75), rgba(16,24,44,0.55));
+      backdrop-filter: blur(10px);
+    }
+
+    .panel-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .rooms-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .room-item {
+      padding: 10px 12px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.12s, border-color 0.15s, box-shadow 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid transparent;
+    }
+    .room-item:hover { background: var(--panel-hover); transform: translateY(-1px); border-color: var(--border); box-shadow: var(--shadow-soft); }
+    .room-item.active {
+      background: linear-gradient(135deg, rgba(45,212,191,0.12), rgba(96,165,250,0.10));
+      border-color: rgba(96,165,250,0.30);
+      box-shadow: 0 14px 40px rgba(96,165,250,0.10);
+    }
+
+    .room-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(96,165,250,0.35), rgba(28,44,80,0.55));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.9rem;
+      flex-shrink: 0;
+      position: relative;
+      border: 1px solid rgba(148,163,184,0.18);
+    }
+    .room-avatar .presence-dot {
+      position: absolute;
+      bottom: 1px; right: 1px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      border: 2px solid rgba(16,24,44,0.85);
+      background: var(--offline);
+    }
+    .room-avatar .presence-dot.online { background: var(--online); }
+
+    .room-info { flex: 1; min-width: 0; }
+    .room-name { font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .room-last-msg { font-size: 0.78rem; color: var(--muted-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+    .room-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .room-time { font-size: 0.7rem; color: var(--muted); }
+    .unread-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 1px 6px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .btn-delete-room {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(251,113,133,.35);
+      background: rgba(251,113,133,.12);
+      color: var(--danger);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.12s;
+      flex-shrink: 0;
+    }
+    .btn-delete-room:hover { background: rgba(251,113,133,.28); transform: scale(1.1); }
+    .room-item:hover .btn-delete-room { display: flex; }
+
+    .empty-state {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* ── Chat Panel ── */
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      background: transparent;
+      min-height: 0;
+    }
+
+    .chat-header {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(16,24,44,0.86), rgba(16,24,44,0.60));
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
+    }
+
+    .chat-header-avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: var(--border-light);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.8rem;
+    }
+
+    .chat-header-info { flex: 1; }
+    .chat-header-name { font-weight: 600; font-size: 0.92rem; }
+    .chat-header-sub { font-size: 0.75rem; color: var(--muted-light); }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .messages::before {
+      content: "";
+      height: 10px;
+      flex: 0 0 auto;
+    }
+
+    .msg-group {
+      display: flex;
+      flex-direction: column;
+      max-width: 72%;
+    }
+    .msg-group.mine { align-self: flex-end; align-items: flex-end; }
+    .msg-group.other { align-self: flex-start; align-items: flex-start; }
+
+    .msg-sender {
+      font-size: 0.72rem;
+      color: var(--muted-light);
+      font-weight: 500;
+      margin-bottom: 3px;
+      padding: 0 4px;
+    }
+
+    .msg-bubble {
+      padding: 9px 13px;
+      border-radius: 16px;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-wrap: break-word;
+      position: relative;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.30);
+    }
+    .msg-group.mine .msg-bubble {
+      background: var(--msg-mine);
+      border: 1px solid rgba(45,212,191,0.22);
+      border-bottom-right-radius: 4px;
+    }
+    .msg-group.other .msg-bubble {
+      background: var(--msg-other);
+      border: 1px solid rgba(148,163,184,0.16);
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg-time {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 3px;
+      padding: 0 4px;
+    }
+
+    .msg-spacer { height: 8px; }
+
+    /* Typing indicator */
+    .typing-bar {
+      height: 32px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      font-size: 0.78rem;
+      color: rgba(96,165,250,0.95);
+      font-style: italic;
+      flex-shrink: 0;
+    }
+
+    .dots span {
+      display: inline-block;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-left: 2px;
+      animation: bounce 1.2s infinite ease-in-out both;
+    }
+    .dots span:nth-child(1) { animation-delay: -0.32s; }
+    .dots span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Input area */
+    .input-area {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(16,24,44,0.72), rgba(16,24,44,0.92));
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .input-area input[type=text] {
+      flex: 1;
       font-family: inherit;
       font-size: 0.9rem;
-      padding: 10px 14px; 
-      background: var(--chip); 
-      color: var(--fg); 
-      border: 1px solid var(--border); 
-      border-radius: 8px; 
+      padding: 10px 16px;
+      background: rgba(7,10,18,0.55);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 22px;
       outline: none;
-      transition: all 0.2s ease;
+      transition: border-color 0.15s, background 0.15s, transform 0.12s;
     }
-    
-    input:focus, select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    .input-area input[type=text]:focus { border-color: rgba(45,212,191,0.55); background: rgba(7,10,18,0.72); transform: translateY(-1px); }
+    .input-area input[type=text]:disabled { opacity: 0.4; }
+
+    .send-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(45,212,191,0.95), rgba(96,165,250,0.92));
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, opacity 0.15s;
+      flex-shrink: 0;
+      box-shadow: 0 16px 30px rgba(45,212,191,0.16);
     }
-    
-    button { 
-      cursor: pointer; 
-      font-weight: 500; 
-      background: var(--panel-hover);
+    .send-btn:hover { background: linear-gradient(135deg, rgba(34,197,94,0.95), rgba(96,165,250,0.92)); }
+    .send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .send-btn svg { width: 18px; height: 18px; fill: white; }
+
+    .img-btn {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: transparent;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      transition: background 0.15s;
+      flex-shrink: 0;
     }
-    
-    button:hover { background: var(--border); }
-    
-    button.primary { background: var(--accent); color: white; border-color: var(--accent); }
-    button.primary:hover { background: var(--accent-hover); }
-    
-    header .status {
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      background: rgba(239, 68, 68, 0.2);
-      color: var(--danger);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-    header .status.connected {
-      background: rgba(16, 185, 129, 0.2);
-      color: var(--success);
-      border-color: rgba(16, 185, 129, 0.3);
+    .img-btn:hover { background: var(--panel-hover); }
+
+    /* ── Logs Panel ── */
+    .logs-panel {
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(8, 15, 30, 0.82), rgba(8, 15, 30, 0.92));
+      backdrop-filter: blur(10px);
+      min-height: 0;
     }
 
-    /* Main Grid */
-    main { 
-      display: grid; 
-      grid-template-columns: 380px 1fr 380px; 
-      gap: 16px; 
-      padding: 20px; 
+    .logs-body {
       flex: 1;
-      height: calc(100vh - 70px);
-      overflow: hidden;
-    }
-    
-    section { 
-      background: var(--panel); 
-      border: 1px solid var(--border); 
-      border-radius: 12px; 
-      display: flex; 
-      flex-direction: column; 
-      overflow: hidden;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    
-    section h3 { 
-      margin: 0; 
-      padding: 14px 20px; 
-      border-bottom: 1px solid var(--border); 
-      color: var(--fg); 
-      font-weight: 600; 
-      font-size: 0.95rem;
-      background: rgba(15, 23, 42, 0.4);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .content { padding: 16px; display: flex; flex-direction: column; gap: 16px; flex: 1; overflow-y: auto; }
-    
-    .row { display: flex; flex-direction: column; gap: 6px; }
-    .row.horizontal { flex-direction: row; align-items: flex-end; }
-    .row label { color: var(--muted); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
-    
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .hr { height: 1px; background: var(--border); margin: 8px 0; }
-    
-    /* Pills */
-    .flex-wrap { display: flex; gap: 8px; flex-wrap: wrap; }
-    .pill {
-      display: inline-flex;  align-items: center; justify-content: center;
-      padding: 8px 16px;
-      border: 1px solid var(--border); border-radius: 999px; background: var(--bg);
-      cursor: pointer; color: var(--fg); font-weight: 500; font-size: 0.9rem;
-      transition: all 0.2s ease;
-    }
-    .pill:hover { background: var(--panel-hover); }
-    .pill.active { background: var(--accent); border-color: var(--accent); color: white; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
-
-    /* Rooms section */
-    .rooms-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-height: 150px; }
-    .room { 
-      border: 1px solid var(--border); border-radius: 10px; padding: 12px; 
-      background: var(--bg); cursor: pointer; transition: all 0.2s ease; 
-    }
-    .room:hover { border-color: var(--muted); }
-    .room.active { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
-    .room .name { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
-    .room .id { color: var(--muted); font-size: 0.75rem; font-family: monospace; }
-    
-    /* Chat Area */
-    .chat-container { display: flex; flex-direction: column; height: 100%; }
-    .messages { 
-      flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; 
-      background: var(--bg); scroll-behavior: smooth;
-    }
-    
-    .msg { 
-      max-width: 85%; padding: 12px 16px; border-radius: 16px; position: relative;
-      background: var(--msg-other); border: 1px solid var(--border); border-bottom-left-radius: 4px;
-      align-self: flex-start;
-    }
-    .msg.mine { 
-      background: var(--msg-mine); border-color: #0891b2; border-bottom-left-radius: 16px; border-bottom-right-radius: 4px;
-      align-self: flex-end;
-    }
-    
-    .msg .meta { 
-      font-size: 0.75rem; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; 
-    }
-    .msg.mine .meta { flex-direction: row-reverse; }
-    
-    .msg .mid { color: var(--accent); font-family: monospace; font-size: 0.7rem; }
-    .msg .body { font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
-    
-    .msg .readpill { 
-      padding: 2px 8px; font-size: 0.7rem; border-radius: 999px; background: rgba(255,255,255,0.1); border: none; margin-left: auto;
-    }
-    
-    /* Typing Indicator */
-    .typing-container {
-      padding: 8px 20px;
-      background: var(--bg);
-      font-size: 0.8rem;
-      color: var(--accent);
-      min-height: 36px;
-      display: flex;
-      align-items: center;
-      font-style: italic;
-      border-top: 1px solid var(--border);
-    }
-    
-    .typing-indicator span {
-      display: inline-block;
-      width: 4px; height: 4px; background-color: var(--accent);
-      border-radius: 50%; margin-left: 2px;
-      animation: bounce 1.4s infinite ease-in-out both;
-    }
-    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-    @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
+      overflow-y: auto;
+      padding: 10px;
+      font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.75rem;
     }
 
-    /* Input Area */
-    .input-area { padding: 16px; background: var(--panel); border-top: 1px solid var(--border); display: flex; gap: 10px; }
-    .input-area input { flex: 1; padding: 12px 16px; border-radius: 999px; background: var(--bg); }
-    .input-area button { padding: 12px 24px; border-radius: 999px; font-weight: 600; }
-
-    /* Event Logs */
-    .logs { 
-      flex: 1; overflow-y: auto; padding: 12px; font-family: monospace; font-size: 0.8rem;
-      background: #020617; /* Very dark blue for logs */
+    .log-line {
+      padding: 4px 6px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      word-break: break-all;
+      line-height: 1.4;
     }
-    .log-line { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); word-break: break-all; }
-    .log-time { color: var(--muted); margin-right: 8px; }
-    .log-ev { color: #60a5fa; }
+    .log-line:hover { background: rgba(255,255,255,.04); }
+    .log-time { color: var(--muted); margin-right: 6px; }
+    .log-ev   { color: #60a5fa; }
     .log-emit { color: #34d399; }
-    .log-err { color: #f87171; }
-    .log-sys { color: #fbbf24; }
-    
-    /* Drawer Styling */
-    .drawer-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5); z-index: 1000;
-      display: none; opacity: 0; transition: opacity 0.3s ease;
+    .log-err  { color: #f87171; }
+    .log-sys  { color: #fbbf24; }
+    .log-body { color: #64748b; display: block; padding-left: 8px; font-size: 0.7rem; }
+
+    /* ── Drawer ── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 100;
+      display: none; opacity: 0;
+      transition: opacity 0.25s;
     }
-    .drawer-overlay.open { display: block; opacity: 1; }
+    .overlay.open { display: block; opacity: 1; }
+
     .drawer {
-      position: fixed; top: 0; left: -400px; bottom: 0; width: 380px;
-      background: var(--bg); z-index: 1001;
+      position: fixed; top: 0; left: -520px; bottom: 0; width: 500px;
+      background: linear-gradient(180deg, rgba(16,24,44,0.92), rgba(16,24,44,0.82));
       border-right: 1px solid var(--border);
-      box-shadow: 4px 0 15px rgba(0,0,0,0.5);
-      transition: left 0.3s ease;
+      z-index: 101;
       display: flex; flex-direction: column;
+      transition: left 0.25s ease;
+      box-shadow: 8px 0 24px rgba(0,0,0,.4);
+      backdrop-filter: blur(14px);
     }
     .drawer.open { left: 0; }
-    .drawer h3 {
-      margin: 0; padding: 14px 20px; border-bottom: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center; background: var(--panel);
-    }
-    .drawer .close-btn { background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; padding: 0; }
-    .drawer .close-btn:hover { color: white; }
 
-    /* Scrollbar Styling */
-    ::-webkit-scrollbar { width: 6px; }
+    
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      font-weight: 700; font-size: 0.95rem;
+    }
+
+    .drawer-close {
+      background: none; border: none;
+      color: var(--muted); font-size: 1.4rem;
+      cursor: pointer; line-height: 1;
+      transition: color 0.15s;
+    }
+    .drawer-close:hover { color: var(--fg); }
+
+    .drawer-body { padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 0.75rem; font-weight: 600; color: var(--muted-light); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .field input, .field select {
+      font-family: inherit; font-size: 0.88rem;
+      padding: 9px 12px;
+      background: rgba(7,10,18,0.55); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 12px;
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+
+    .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .pill {
+      padding: 6px 14px;
+      border: 1px solid var(--border); border-radius: 999px;
+      background: rgba(7,10,18,0.45); color: var(--fg);
+      font-size: 0.85rem; font-weight: 500;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .pill:hover { background: var(--panel-hover); }
+    .pill.active {
+      background: linear-gradient(135deg, rgba(45,212,191,0.95), rgba(96,165,250,0.90));
+      border-color: rgba(96,165,250,0.35);
+      color: #06121D;
+      font-weight: 700;
+    }
+
+    .divider { height: 1px; background: var(--border-light); }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row-h { display: flex; gap: 8px; align-items: flex-end; }
+    .row-h .field { flex: 1; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--panel-hover); border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+    ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.22); border-radius: 4px; }
+
+    /* Responsive */
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 280px 1fr; }
+      .logs-panel { display: none; }
+    }
+    @media (max-width: 820px) {
+      header input { min-width: 180px; }
+      main { grid-template-columns: 1fr; }
+      .rooms-panel { display: none; }
+      .chat-header { padding: 12px 14px; }
+      .messages { padding: 14px; }
+    }
   </style>
 </head>
 <body>
 
-<header>
-  <div style="display:flex; align-items:center; gap:12px;">
-    <button id="btnOpenConfig" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--fg);" title="Identity & Setup">&#9776;</button>
-    <div class="brand">💬 Chat Tester</div>
+<!-- Drawer overlay -->
+<div class="overlay" id="overlay"></div>
+
+<!-- Settings drawer -->
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    Identity &amp; Setup
+    <button class="drawer-close" id="btnClose">&times;</button>
   </div>
-  <input id="serverUrl" value="https://chat-service.u-code.io" style="min-width:280px" placeholder="Server URL" />
-  <button id="btnConnect" class="primary">Connect</button>
-  <div id="status" class="status">Disconnected</div>
-</header>
+  <div class="drawer-body">
 
-<div class="drawer-overlay" id="drawerOverlay"></div>
-<div class="drawer" id="configDrawer">
-  <h3>Identity & Setup <button class="close-btn" id="btnCloseConfig">&times;</button></h3>
-  <div class="content">
-      <div class="row">
-        <label>Select Identity</label>
-        <div class="flex-wrap" id="userPills"></div>
-        <div class="row horizontal" style="margin-top: 6px; gap: 8px;">
-          <input id="newUserName" placeholder="Name" style="flex: 1; min-width: 60px; font-size: 0.8rem; padding: 6px 10px;" />
-          <input id="newUserRowId" placeholder="UUID (optional)" style="flex: 2; font-size: 0.8rem; padding: 6px 10px;" />
-          <button id="btnAddUser" class="primary" style="padding: 6px 14px; font-size: 0.8rem; width: auto;">Add</button>
+    <div class="field">
+      <label>Active User</label>
+      <div class="pills" id="userPills"></div>
+      <div class="row-h" style="margin-top:6px;">
+        <div class="field" style="flex:1"><input id="newUserName" placeholder="Name" /></div>
+        <div class="field" style="flex:2"><input id="newUserRowId" placeholder="UUID (optional)" /></div>
+        <button class="btn btn-primary btn-sm" id="btnAddUser">Add</button>
+      </div>
+    </div>
+
+    <div class="row-h">
+      <div class="field" style="flex:1">
+        <label>Your row_id</label>
+        <input id="rowId" />
+      </div>
+      <button class="btn btn-sm" id="btnResetIds" style="margin-bottom:1px">Reset</button>
+    </div>
+
+    <div class="field">
+      <label>Project ID</label>
+      <input id="projectId" value="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" />
+    </div>
+
+    <div class="row2">
+      <button class="btn" id="btnConnected">Identify (Init)</button>
+      <button class="btn" id="btnRoomsList">Pull Rooms</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>Create Direct Message</label>
+      <div class="row-h">
+        <div class="field" style="flex:1">
+          <select id="peerSelect"></select>
         </div>
+        <button class="btn btn-primary" id="btnCreateDM">Create DM</button>
       </div>
-
-      <div class="row horizontal">
-        <div class="row" style="flex:1">
-          <label>Your row_id</label>
-          <input id="rowId" />
-        </div>
-        <button id="btnResetIds" title="Reset IDs to defaults">Reset</button>
+      <div id="customPeerFields" style="display:none; flex-direction:column; gap:6px; margin-top:6px;">
+        <input id="customPeerName" placeholder="Peer name" />
+        <input id="customPeerId" placeholder="Peer UUID" />
       </div>
+    </div>
 
-      <div class="row">
-        <label>Project ID</label>
-        <input id="projectId" value="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" />
+    <div class="field">
+      <label>Create Group</label>
+      <button class="btn" id="btnCreateStaticGroup">Create Static Group</button>
+    </div>
+
+    <div class="field">
+      <label>Join Room by ID</label>
+      <div class="row-h">
+        <div class="field" style="flex:1"><input id="joinRoomId" placeholder="Room UUID" /></div>
+        <button class="btn" id="btnJoinRoom">Join</button>
       </div>
+    </div>
 
-      <div class="grid2">
-        <button id="btnConnected" title="Re-identify / re-send connected">Identify (Init)</button>
-        <button id="btnRoomsList">Pull Rooms</button>
-      </div>
-
-      <div class="hr"></div>
-
-      <div class="row">
-        <label>Create Direct Message (DM)</label>
-        <div class="row horizontal">
-          <select id="peerSelect" style="flex:1"></select>
-          <button id="btnCreateDM" class="primary">Create DM</button>
-        </div>
-        <div id="customPeerFields" style="display:none; flex-direction:column; gap:6px; margin-top:6px;">
-          <input id="customPeerName" placeholder="Custom Peer Name" />
-          <input id="customPeerId" placeholder="Custom Peer Row ID (UUID)" />
-        </div>
-      </div>
-
-      <div class="row">
-        <label>Create Static Group</label>
-        <button id="btnCreateStaticGroup">Create Group</button>
-      </div>
-
-      <div class="row">
-        <label>Join Room Manually</label>
-        <div class="row horizontal">
-          <input id="joinRoomId" placeholder="Enter room UUID" style="flex:1" />
-          <button id="btnJoinRoom">Join</button>
-        </div>
-      </div>
+    
   </div>
 </div>
 
+
+<!-- Header -->
+<header>
+  <button class="btn" id="btnMenu" style="padding:6px 10px; font-size:1.1rem; border:none; background:transparent;">&#9776;</button>
+  <div class="brand">Chat Tester</div>
+  <input id="serverUrl" value="https://chat-service.u-code.io" placeholder="Server URL" />
+  <button class="btn btn-primary" id="btnConnect">Connect</button>
+  <button class="btn" id="btnLog" style="margin-left: 8px;">Event Log</button>
+  <div id="statusBadge" class="badge-status">Disconnected</div>
+</header>
+
+<!-- Main -->
 <main>
-  <!-- Left Column: Rooms -->
-  <section>
-    <h3>Available Rooms</h3>
-    <div class="content" style="padding:16px; flex:1;">
-      <div class="rooms-list" id="roomsList" style="flex:1; margin-top:0;">
-        <div style="color:var(--muted); font-size:0.85rem; padding:10px;">No rooms loaded yet.</div>
+
+  <!-- Rooms -->
+  <div class="rooms-panel">
+    <div class="panel-header">
+      Rooms
+      <span id="activeUserLabel" style="font-size:0.78rem; color:var(--muted-light); font-weight:400;"></span>
+    </div>
+    <div class="rooms-list" id="roomsList">
+      <div class="empty-state">Connect to load rooms</div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-panel">
+    <div class="chat-header" id="chatHeader">
+      <div class="chat-header-avatar" id="chatAvatar" style="display:none"></div>
+      <div class="chat-header-info">
+        <div class="chat-header-name" id="chatName">Select a room</div>
+        <div class="chat-header-sub" id="chatSub"></div>
       </div>
     </div>
-  </section>
 
-  <!-- Middle Column: Chat -->
-  <section>
-    <h3>
-      Chat Window
-      <span id="activeRoomLabel" style="font-weight:400; font-size:0.8rem; color:var(--muted);">Select a room</span>
-    </h3>
-    
-    <div class="chat-container">
-      <div class="messages" id="messages">
-        <!-- Messages go here -->
-         <div style="text-align:center; color:var(--muted); margin-top:50px; font-size:0.9rem;">
-           Join a room to start messaging
-         </div>
-      </div>
-      
-      <!-- Typing Indicator Area -->
-      <div class="typing-container">
-        <div id="typingIndicator" style="display:none;">
-           <span id="typingUser">Someone</span> is typing
-           <span class="typing-indicator"><span></span><span></span><span></span></span>
-        </div>
-      </div>
-
-      <div class="input-area">
-        <button id="btnImgToggle" title="Send Image" style="padding: 10px; border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;">🖼️</button>
-        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
-          <input id="msgInput" placeholder="Type a message..." autocomplete="off" disabled />
-          <input id="imgInput" placeholder="Paste Image URL here..." style="display:none; font-size:0.8rem; padding:8px 12px;" />
-        </div>
-        <button id="btnSendMsg" class="primary" disabled>Send</button>
-      </div>
-      
-      <div class="row horizontal" style="padding: 0 16px 16px 16px; background: var(--panel);">
-         <input id="manualMsgId" placeholder="Message ID to mark as read" style="flex:1; font-size:0.8rem; padding:8px 12px; border-radius:6px;" />
-         <button id="btnMarkRead" style="font-size:0.8rem; padding:8px 12px; border-radius:6px;">Mark Read</button>
-      </div>
+    <div class="messages" id="messages">
+      <div class="empty-state" style="margin-top:60px;">Select a room to start chatting</div>
     </div>
-  </section>
 
-  <!-- Right Column: Event Log -->
-  <section>
-    <h3>Event Logs <button onclick="document.getElementById('logs').innerHTML=''" style="padding:4px 8px; font-size:0.7rem;">Clear</button></h3>
-    <div class="logs" id="logs"></div>
-  </section>
+    <div class="typing-bar" id="typingBar" style="display:none;">
+      <span id="typingText"></span>&nbsp;
+      <span class="dots"><span></span><span></span><span></span></span>
+    </div>
+
+    <div class="input-area">
+      <button class="img-btn" id="btnImgToggle" title="Send image">🖼</button>
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+        <input type="text" id="msgInput" placeholder="Write a message..." autocomplete="off" disabled />
+        <input type="text" id="imgInput" placeholder="Image URL..." style="display:none; font-size:0.8rem;" />
+      </div>
+      <button class="send-btn" id="btnSend" disabled title="Send">
+        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  
+<!-- Logs -->
+  <div class="logs-panel">
+    <div class="panel-header">
+      Event Log
+      <button class="btn btn-sm" onclick="document.getElementById('logsBody').innerHTML=''">Clear</button>
+    </div>
+    <div class="logs-body" id="logsBody"></div>
+  </div>
+
 </main>
 
 <script>
-  // ---------- Helpers ----------
-  const el = (id) => document.getElementById(id);
-  const logs = el('logs');
+  const el = id => document.getElementById(id);
 
+  // ── Log ──
   function log(kind, title, payload) {
     const line = document.createElement('div');
     line.className = 'log-line';
     const ts = new Date().toLocaleTimeString();
-    
-    let colorClass = '';
-    if(kind === 'ev') colorClass = 'log-ev';
-    else if(kind === 'emit') colorClass = 'log-emit';
-    else if(kind === 'err') colorClass = 'log-err';
-    else if(kind === 'sys') colorClass = 'log-sys';
-
-    const body = payload !== undefined ? (typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2)) : '';
-    
-    line.innerHTML = `<span class="log-time">[${ts}]</span> <span class="${colorClass}">${title}</span> ${body ? `<br><span style="color:#94a3b8">${body}</span>` : ''}`;
-    logs.appendChild(line);
-    logs.scrollTop = logs.scrollHeight;
+    const cls = { ev:'log-ev', emit:'log-emit', err:'log-err', sys:'log-sys' }[kind] || '';
+    const body = payload !== undefined
+      ? (typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2))
+      : '';
+    line.innerHTML =
+      `<span class="log-time">[${ts}]</span><span class="${cls}"> ${title}</span>` +
+      (body ? `<span class="log-body">${body}</span>` : '');
+    const lb = el('logsBody');
+    lb.appendChild(line);
+    lb.scrollTop = lb.scrollHeight;
   }
 
-  // ---------- Users (STATIC UUIDs) ----------
+  // ── Users ──
   const STATIC_IDS = {
     Athos:   '11111111-1111-1111-1111-111111111111',
     Porthos: '22222222-2222-2222-2222-222222222222',
     Aramis:  '33333333-3333-3333-3333-333333333333',
   };
-
   const users = {
-    Athos:   { name: 'Athos',   row_id: STATIC_IDS.Athos },
-    Porthos: { name: 'Porthos', row_id: STATIC_IDS.Porthos },
-    Aramis:  { name: 'Aramis',  row_id: STATIC_IDS.Aramis },
+    Athos:   { name:'Athos',   row_id: STATIC_IDS.Athos },
+    Porthos: { name:'Porthos', row_id: STATIC_IDS.Porthos },
+    Aramis:  { name:'Aramis',  row_id: STATIC_IDS.Aramis },
   };
-
   let activeUser = 'Athos';
+
+  // ── State ──
   let socket = null;
   let heartbeatTimer = null;
+  let creatingRoom = false;
+  let isTyping = false;
+  let typingTimer = null;
 
-  // Client State
   const state = {
-    rooms: new Map(),          // room_id -> room
+    rooms: new Map(),
     currentRoomId: null,
-    messages: new Map(),       // room_id -> [messages]
-    readSent: new Set(),       // message_ids already emitted
-    typingUsers: new Set(),    // Usernames currently typing
+    messages: new Map(),
+    readSent: new Set(),
+    typingUsers: new Set(),
   };
 
-  // ---------- Socket Connection ----------
+  // ── Avatar helper ──
+  function avatarLetter(name) {
+    return (name || '?')[0].toUpperCase();
+  }
+  function avatarColor(name) {
+    const colors = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4'];
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    return colors[Math.abs(h) % colors.length];
+  }
+
+  // ── Connect ──
   function connect() {
     const url = el('serverUrl').value || 'https://chat-service.u-code.io';
     if (socket?.connected) socket.disconnect();
-    
-    socket = io(url, {
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionDelay: 500,
-      reconnectionAttempts: Infinity
-    });
+
+    socket = io(url, { transports: ['websocket'], reconnection: true, reconnectionDelay: 500, reconnectionAttempts: Infinity });
 
     socket.on('connect', () => {
-      log('sys', 'Socket connected', { id: socket.id });
-      const statusEl = el('status');
-      statusEl.textContent = 'Connected';
-      statusEl.className = 'status connected';
-      
-      // Auto-identify right away
+      log('sys', 'Connected', { id: socket.id });
+      el('statusBadge').textContent = 'Connected';
+      el('statusBadge').className = 'badge-status connected';
       doConnected();
     });
 
-    socket.on('disconnect', (reason) => {
-      log('sys', 'Socket disconnected', { reason });
-      const statusEl = el('status');
-      statusEl.textContent = 'Disconnected';
-      statusEl.className = 'status';
+    socket.on('disconnect', reason => {
+      log('sys', 'Disconnected', { reason });
+      el('statusBadge').textContent = 'Disconnected';
+      el('statusBadge').className = 'badge-status';
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
     });
 
-    // Server Events
-    socket.on('rooms list', (rooms) => {
+    socket.on('rooms list', rooms => {
       log('ev', '⬅️ rooms list', rooms);
-      renderRooms(rooms || []);
+      creatingRoom = false;
+      el('btnCreateDM').disabled = false;
+      if (!rooms) return;
+      renderRooms(Array.isArray(rooms) ? rooms : []);
     });
-    
-    socket.on('room history', (msgs) => {
+
+    socket.on('room history', msgs => {
       log('ev', '⬅️ room history', msgs);
       const rid = state.currentRoomId;
       if (!rid) return;
@@ -487,272 +796,293 @@
       renderMessages();
       markAllVisibleAsRead();
     });
-    
-    socket.on('chat message', (msg) => {
-      log('ev', '⬅️ chat message', msg);
-      const rid = msg?.room_id || msg?.RoomId;
-      
-      // If the sender just sent a message, they stopped typing
-      const sender = msg?.from || msg?.From;
-      if (sender && rid === state.currentRoomId) {
-         handleTypingEvent({ user_name: sender, room_id: rid }, false);
-      }
 
+    socket.on('chat message', msg => {
+      log('ev', '⬅️ chat message', msg);
+      const rid = msg?.room_id;
+      const sender = msg?.from;
+      if (sender && rid === state.currentRoomId) handleTypingEvent({ user_name: sender, room_id: rid }, false);
       if (!rid) return;
-      
       const arr = state.messages.get(rid) || [];
       arr.push(msg);
       state.messages.set(rid, arr);
-      
       if (state.currentRoomId === rid) {
         appendMessage(msg);
-        tryMarkRead(msg); 
+        tryMarkRead(msg);
       }
     });
-    
-    socket.on('check room', (id) => {
+
+    socket.on('check room', id => {
       log('ev', '⬅️ check room', { id });
+      creatingRoom = false;
+      el('btnCreateDM').disabled = false;
       const me = users[activeUser];
-      emit('join room', { room_id: id, row_id: me.row_id, to_name: peerNameFor(me.name), offset: 0, limit: 50 });
-      el('joinRoomId').value = id;
+      const proj = el('projectId').value;
+      emit('join room', { room_id: id, row_id: me.row_id, project_id: proj, offset: 0, limit: 100 });
     });
 
-    // -------- Typing Events Logic --------
-    // Assume backend routes `typing:start` and `typing:stop`
-    socket.on('typing:start', (data) => {
-       log('ev', '⬅️ typing:start', data);
-       handleTypingEvent(data, true);
-    });
+    socket.on('typing:start', data => { log('ev', '⬅️ typing:start', data); handleTypingEvent(data, true); });
+    socket.on('typing:stop',  data => { log('ev', '⬅️ typing:stop',  data); handleTypingEvent(data, false); });
 
-    socket.on('typing:stop', (data) => {
-       log('ev', '⬅️ typing:stop', data);
-       handleTypingEvent(data, false);
+    socket.on('presence.updated', p => {
+      log('ev', '⬅️ presence.updated', p);
+      updatePresenceDot(p);
     });
-
-    socket.on('presence.updated', (p) => log('ev', '⬅️ presence.updated', p));
-    socket.on('presence.result', (p) => log('ev', '⬅️ presence.result', p));
-    socket.on('message.read', (p) => log('ev', '⬅️ message.read', p));
-    socket.on('room.updated', (p) => log('ev', '⬅️ room.updated', p));
-    socket.on('error', (e) => log('err', '❌ error', e));
+    socket.on('message.read', p => log('ev', '⬅️ message.read', p));
+    socket.on('room.deleted', data => {
+      log('ev', '⬅️ room.deleted', data);
+      const rid = data?.room_id;
+      if (!rid) return;
+      state.messages.delete(rid);
+      if (state.currentRoomId === rid) {
+        state.currentRoomId = null;
+        el('chatName').textContent = 'Select a room';
+        el('chatSub').textContent = '';
+        el('chatAvatar').style.display = 'none';
+        el('messages').innerHTML = '<div class="empty-state" style="margin-top:60px;">Select a room to start chatting</div>';
+        el('msgInput').disabled = true;
+        el('btnSend').disabled = true;
+        el('typingBar').style.display = 'none';
+      }
+      pullRooms();
+    });
+    socket.on('error', e => log('err', '❌ error', e));
   }
 
   function emit(ev, payload) {
-    if(!socket || !socket.connected) {
-       log('err', 'Cannot emit, socket disconnected', ev);
-       return;
-    }
+    if (!socket?.connected) { log('err', 'Not connected', ev); return; }
     log('emit', '➡️ ' + ev, payload);
     socket.emit(ev, payload);
   }
 
-  // ---------- Identity UI ----------
+  // ── Identity ──
   function renderUserPills() {
     const box = el('userPills');
     box.innerHTML = '';
     Object.values(users).forEach(u => {
-      const pill = document.createElement('button');
-      pill.className = 'pill' + (u.name === activeUser ? ' active' : '');
-      pill.textContent = u.name;
-      pill.addEventListener('click', () => {
+      const btn = document.createElement('button');
+      btn.className = 'pill' + (u.name === activeUser ? ' active' : '');
+      btn.textContent = u.name;
+      btn.onclick = () => {
         activeUser = u.name;
-        renderUserPills();
-        el('rowId').value = users[activeUser].row_id;
-        
-        // Clear active room state when switching users to prevent confusion
+        el('rowId').value = u.row_id;
+        el('activeUserLabel').textContent = u.name;
         state.currentRoomId = null;
-        el('activeRoomLabel').textContent = 'Select a room';
-        el('messages').innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:50px; font-size:0.9rem;">Join a room to start messaging</div>';
+        state.typingUsers.clear();
+        el('chatName').textContent = 'Select a room';
+        el('chatSub').textContent = '';
+        el('chatAvatar').style.display = 'none';
+        el('messages').innerHTML = '<div class="empty-state" style="margin-top:60px;">Select a room to start chatting</div>';
         el('msgInput').disabled = true;
-        el('btnSendMsg').disabled = true;
-        hideTyping();
-      });
-      box.appendChild(pill);
+        el('btnSend').disabled = true;
+        el('typingBar').style.display = 'none';
+        renderUserPills();
+      };
+      box.appendChild(btn);
     });
     el('rowId').value = users[activeUser].row_id;
+    el('activeUserLabel').textContent = users[activeUser]?.name || '';
 
-    // Peers dropdown
-    const peerSel = el('peerSelect');
-    peerSel.innerHTML = '';
+    const sel = el('peerSelect');
+    sel.innerHTML = '';
     Object.values(users).forEach(u => {
       if (u.name === activeUser) return;
       const opt = document.createElement('option');
-      opt.value = u.name;
-      opt.textContent = u.name;
-      peerSel.appendChild(opt);
+      opt.value = u.name; opt.textContent = u.name;
+      sel.appendChild(opt);
     });
-
-    // Add Custom option
-    const optCustom = document.createElement('option');
-    optCustom.value = 'CUSTOM';
-    optCustom.textContent = '... Custom User ...';
-    peerSel.appendChild(optCustom);
-    
-    peerSel.addEventListener('change', (e) => {
-        el('customPeerFields').style.display = e.target.value === 'CUSTOM' ? 'flex' : 'none';
-    });
+    const custom = document.createElement('option');
+    custom.value = 'CUSTOM'; custom.textContent = '... Custom ...';
+    sel.appendChild(custom);
+    sel.onchange = e => {
+      el('customPeerFields').style.display = e.target.value === 'CUSTOM' ? 'flex' : 'none';
+    };
   }
 
-  function resetIds() {
-    users.Athos.row_id = STATIC_IDS.Athos;
-    users.Porthos.row_id = STATIC_IDS.Porthos;
-    users.Aramis.row_id  = STATIC_IDS.Aramis;
-    renderUserPills();
-    log('sys', 'IDs resetted to defaults');
-  }
-
-  function peerNameFor(myName) {
-    const sel = el('peerSelect').value;
-    return sel || (myName === 'Athos' ? 'Porthos' : 'Athos');
-  }
-
-  // ---------- Rooms ----------
+  // ── Rooms ──
   function renderRooms(rooms) {
     state.rooms.clear();
     const list = el('roomsList');
     list.innerHTML = '';
-    
-    if(!rooms || rooms.length === 0) {
-       list.innerHTML = '<div style="color:var(--muted); font-size:0.85rem; padding:10px;">No rooms found.</div>';
-       return;
+    if (!rooms?.length) {
+      list.innerHTML = '<div class="empty-state">No rooms yet</div>';
+      return;
     }
+    const unique = new Map();
+    rooms.forEach(r => { const id = r.id; if (id) unique.set(id, r); });
 
-    rooms.forEach(r => {
-      const id = r.id || r.Id || r.room_id || r.RoomId;
-      if (!id) return;
-      state.rooms.set(id, r);
-      
+    unique.forEach(r => {
+      state.rooms.set(r.id, r);
+      const isActive = state.currentRoomId === r.id;
+      const name = r.to_name || r.name || 'Unnamed';
+      const lastMsg = r.last_message || '';
+      const lastFrom = r.last_message_from ? r.last_message_from + ': ' : '';
+      const unread = r.unread_message_count || 0;
+      const presence = r.user_presence_status || 'offline';
+      const time = r.last_message_created_at ? fmtTime(r.last_message_created_at) : '';
+      const color = avatarColor(name);
+
       const div = document.createElement('div');
-      div.className = 'room' + (state.currentRoomId === id ? ' active' : '');
-      const name = r.name || r.to_name || r.ToName || 'Unnamed Room';
-      
+      div.className = 'room-item' + (isActive ? ' active' : '');
+      div.dataset.roomId = r.id;
       div.innerHTML = `
-        <div class="name"># ${name}</div>
-        <div class="id">${id}</div>
-      `;
-      div.addEventListener('click', () => joinRoom(id, name));
+        <div class="room-avatar" style="background:${color}20; color:${color};">
+          ${avatarLetter(name)}
+          <span class="presence-dot${presence === 'online' ? ' online' : ''}"></span>
+        </div>
+        <div class="room-info">
+          <div class="room-name">${escHtml(name)}</div>
+          <div class="room-last-msg">${escHtml(lastFrom + lastMsg)}</div>
+        </div>
+        <div class="room-meta">
+          <span class="room-time">${time}</span>
+          ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
+          <button class="btn-delete-room" title="Delete room">🗑</button>
+        </div>`;
+      div.querySelector('.btn-delete-room').onclick = e => {
+        e.stopPropagation();
+        deleteRoom(r.id);
+      };
+      div.onclick = () => joinRoom(r.id, r);
       list.appendChild(div);
     });
   }
 
-  function joinRoom(roomId, label) {
-    const me = users[activeUser];
-    state.currentRoomId = roomId;
-    el('activeRoomLabel').textContent = label ? `${label} (${roomId.split('-')[0]})` : roomId.split('-')[0];
-    
-    // Enable inputs
-    el('msgInput').disabled = false;
-    el('btnSendMsg').disabled = false;
-    el('msgInput').focus();
-    
-    hideTyping(); // Clear any stale typing states
-    state.typingUsers.clear(); // Reset typers
-    
-    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-    emit('join room', { room_id: roomId, row_id: me.row_id, project_id: proj, to_name: label || '', offset: 0, limit: 100 });
-    
-    // UI update for room selection
-    document.querySelectorAll('.room').forEach(r => r.classList.remove('active'));
-    // Find and add active class to clicked room
-    [...document.querySelectorAll('.room .id')].forEach(el => {
-       if(el.textContent === roomId) el.parentElement.classList.add('active');
+  function updatePresenceDot(p) {
+    if (!p?.row_id) return;
+    document.querySelectorAll('.room-item').forEach(item => {
+      const r = state.rooms.get(item.dataset.roomId);
+      if (!r) return;
+      if (r.to_row_id === p.row_id) {
+        const dot = item.querySelector('.presence-dot');
+        if (dot) {
+          dot.className = 'presence-dot' + (p.status === 'online' ? ' online' : '');
+        }
+      }
     });
-
-    el('messages').innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:50px;">Loading history...</div>';
+    if (state.currentRoomId) {
+      const r = state.rooms.get(state.currentRoomId);
+      if (r?.to_row_id === p.row_id) {
+        el('chatSub').textContent = p.status === 'online' ? 'Online' : 'Offline';
+      }
+    }
   }
 
-  // ---------- Chat ----------
+  function joinRoom(roomId, roomData) {
+    const me = users[activeUser];
+    state.currentRoomId = roomId;
+    state.typingUsers.clear();
+    el('typingBar').style.display = 'none';
+
+    const name = roomData?.to_name || roomData?.name || 'Room';
+    const color = avatarColor(name);
+    const presence = roomData?.user_presence_status || 'offline';
+
+    el('chatAvatar').style.display = 'flex';
+    el('chatAvatar').style.background = color + '20';
+    el('chatAvatar').style.color = color;
+    el('chatAvatar').textContent = avatarLetter(name);
+    el('chatName').textContent = name;
+    el('chatSub').textContent = presence === 'online' ? 'Online' : 'Offline';
+
+    el('msgInput').disabled = false;
+    el('btnSend').disabled = false;
+    el('msgInput').focus();
+
+    document.querySelectorAll('.room-item').forEach(d => d.classList.remove('active'));
+    const item = document.querySelector(`.room-item[data-room-id="${roomId}"]`);
+    if (item) item.classList.add('active');
+
+    el('messages').innerHTML = '<div class="empty-state" style="margin-top:60px;">Loading...</div>';
+
+    const proj = el('projectId').value;
+    emit('join room', { room_id: roomId, row_id: me.row_id, project_id: proj, to_name: name, offset: 0, limit: 100 });
+  }
+
+  // ── Messages ──
+  let lastMsgSender = null;
+
   function renderMessages() {
     const box = el('messages');
     box.innerHTML = '';
+    lastMsgSender = null;
     const rid = state.currentRoomId;
     if (!rid) return;
-    
     const arr = state.messages.get(rid) || [];
-    if(arr.length === 0) {
-       box.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:50px;">No messages yet. Say hi!</div>';
-       return;
+    if (!arr.length) {
+      box.innerHTML = '<div class="empty-state" style="margin-top:60px;">No messages yet</div>';
+      return;
     }
-    
-    arr.forEach(msg => appendMessage(msg));
+    arr.forEach(m => appendMessage(m));
     box.scrollTop = box.scrollHeight;
   }
 
   function appendMessage(msg) {
     const box = el('messages');
-    
-    // Remove "no messages" or "Loading history" text if it exists
-    if(box.innerHTML.includes('No messages yet') || box.innerHTML.includes('Loading history')) box.innerHTML = '';
-    
-    const div = document.createElement('div');
-    const me = users[activeUser] || { name: 'Unknown', row_id: '' };
+    const placeholder = box.querySelector('.empty-state');
+    if (placeholder) placeholder.remove();
 
-    const from = msg.from || msg.From || '';
-    const mid  = msg.id || msg.Id || msg.message_id || msg.MessageId;
-    const mine = (from === me.name) || (from === me.row_id);
-    
-    let createdDate = 'Just now';
-    if(msg.created_at || msg.CreatedAt) {
-       createdDate = new Date(msg.created_at || msg.CreatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const me = users[activeUser] || {};
+    const from = msg.from || '';
+    const mine = from === me.name || msg.author_row_id === me.row_id;
+    const time = msg.created_at ? fmtTime(msg.created_at) : 'now';
+    const body = escHtml(msg.message || msg.content || '');
+    const file = msg.file || '';
+    const type = msg.type || 'text';
+
+    const senderChanged = lastMsgSender !== (mine ? '__me__' : from);
+
+    if (senderChanged && lastMsgSender !== null) {
+      const spacer = document.createElement('div');
+      spacer.className = 'msg-spacer';
+      box.appendChild(spacer);
     }
-    
-    const body = escapeHtml(msg.message || msg.Message || msg.content || msg.Content || '');
-    const type = msg.type || msg.Type || 'text';
-    const file = msg.file || msg.File || '';
 
-    div.className = 'msg' + (mine ? ' mine' : '');
-    let bodyHtml = `<div class="body">${body}</div>`;
-    
+    const group = document.createElement('div');
+    group.className = 'msg-group ' + (mine ? 'mine' : 'other');
+
+    if (senderChanged && !mine) {
+      const sender = document.createElement('div');
+      sender.className = 'msg-sender';
+      sender.textContent = from;
+      group.appendChild(sender);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.innerHTML = body;
     if (type === 'image' && file) {
-       bodyHtml += `<div style="margin-top:8px;"><img src="${file}" style="max-width:100%; border-radius:8px; cursor:pointer;" onclick="window.open('${file}')" /></div>`;
+      bubble.innerHTML += `<div style="margin-top:6px;"><img src="${file}" style="max-width:100%;border-radius:8px;cursor:pointer;" onclick="window.open('${file}')" /></div>`;
     }
+    group.appendChild(bubble);
 
-    div.innerHTML = `
-      <div class="meta">
-        <strong style="color: ${mine ? '#22d3ee' : '#cbd5e1'}">${mine ? 'You' : (from || 'Unknown')}</strong>
-        <span style="opacity:0.7">${createdDate}</span>
-        ${mid ? `<span class="mid" title="${mid}">#${mid.substring(0,8)}</span>` : ''}
-        ${!mine && mid ? `<button class="readpill" data-mid="${mid}" title="Mark as Read">✓</button>` : ''}
-      </div>
-      ${bodyHtml}
-    `;
-    
-    const btn = div.querySelector('button[data-mid]');
-    if (btn && mid) btn.addEventListener('click', () => {
-        markRead(mid);
-        btn.style.color = 'var(--success)';
-        btn.textContent = '✓✓';
-    });
+    const timEl = document.createElement('div');
+    timEl.className = 'msg-time';
+    timEl.textContent = time;
+    group.appendChild(timEl);
 
-    box.appendChild(div);
+    box.appendChild(group);
     box.scrollTop = box.scrollHeight;
+
+    lastMsgSender = mine ? '__me__' : from;
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  // ---------- Read Logic ----------
-  function markRead(messageId) {
+  // ── Read logic ──
+  function markRead(roomId) {
     const me = users[activeUser];
-    if (!messageId || state.readSent.has(messageId)) return;
-    
-    const rid = state.currentRoomId;
-    if (!rid) return;
-
-    state.readSent.add(messageId);
-    emit('message:read', { row_id: me.row_id, room_id: rid });
+    const key = roomId + ':read';
+    if (state.readSent.has(key)) return;
+    state.readSent.add(key);
+    emit('message:read', { row_id: me.row_id, room_id: roomId });
   }
-  
+
   function tryMarkRead(msg) {
     const me = users[activeUser];
-    const from = msg.from || msg.From || '';
-    if ((from === me.name) || (from === me.row_id)) return; // Don't mark own messages
-    
-    const mid = msg?.id || msg?.Id || msg?.message_id || msg?.MessageId;
-    if (!mid) return;
-    markRead(mid);
+    if ((msg.from === me.name) || (msg.author_row_id === me.row_id)) return;
+    const rid = msg.room_id;
+    if (rid) markRead(rid);
   }
-  
+
   function markAllVisibleAsRead() {
     const rid = state.currentRoomId;
     if (!rid) return;
@@ -760,267 +1090,197 @@
     arr.forEach(tryMarkRead);
   }
 
-  // ---------- Actions ----------
+  // ── Actions ──
   function doConnected() {
     const me = users[activeUser];
-    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const proj = el('projectId').value;
     emit('connected', { row_id: me.row_id, project_id: proj, offset: 0, limit: 50 });
-    
-    // heartbeat every 30s
     if (!heartbeatTimer) {
       heartbeatTimer = setInterval(() => {
         emit('presence:ping', { row_id: me.row_id, project_id: proj });
       }, 30000);
-      log('sys', 'Presence heartbeat started (30s interval)');
     }
-
-    // Auto pull rooms
-    setTimeout(pullRooms, 500);
+    setTimeout(pullRooms, 400);
   }
 
   function pullRooms() {
     const me = users[activeUser];
-    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const proj = el('projectId').value;
     emit('rooms list', { row_id: me.row_id, project_id: proj, offset: 0, limit: 50 });
   }
 
   function createDM() {
+    if (creatingRoom) return;
     const me = users[activeUser];
+    const proj = el('projectId').value;
     const peerName = el('peerSelect').value;
-    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-    
-    let toName = '';
-    let toRowId = '';
+    let toName, toRowId;
 
     if (peerName === 'CUSTOM') {
-       toName = el('customPeerName').value.trim();
-       toRowId = el('customPeerId').value.trim();
-       if (!toName || !toRowId) { alert("Please enter custom peer name and valid UUID"); return; }
+      toName = el('customPeerName').value.trim();
+      toRowId = el('customPeerId').value.trim();
+      if (!toName || !toRowId) { alert('Enter peer name and UUID'); return; }
     } else {
-       const peer = users[peerName];
-       toName = peer.name;
-       toRowId = peer.row_id;
+      const peer = users[peerName];
+      toName = peer.name; toRowId = peer.row_id;
     }
 
-    emit('create room', {
-      row_id: me.row_id,
-      project_id: proj,
-      type: 'single',
-      to_row_id: toRowId,
-      to_name: toName,
-      from_name: me.name
-    });
+    creatingRoom = true;
+    el('btnCreateDM').disabled = true;
+    emit('create room', { row_id: me.row_id, project_id: proj, type: 'single', to_row_id: toRowId, to_name: toName, from_name: me.name });
   }
 
   function createStaticGroup() {
-    const proj = el('projectId').value || '7380859b-8dac-4fe3-b7aa-1fdfcdb4f5c1';
-    emit('create room', {
-      "name": "",
-      "type": "group",
-      "row_id": "0102f522-6372-41e2-89b7-109a3d3a0a3b",
-      "item_id": "2cebed90-9fc3-4e90-82e6-11727762dfc5",
-      "from_name": "asdfasdfAA!1",
-      "project_id": proj,
-      "to_name": "#23452345234"
-    });
+    const proj = el('projectId').value;
+    emit('create room', { name:'', type:'group', row_id:'0102f522-6372-41e2-89b7-109a3d3a0a3b', item_id:'2cebed90-9fc3-4e90-82e6-11727762dfc5', from_name:'asdfasdfAA!1', project_id: proj, to_name:'#23452345234' });
+  }
+
+  function deleteRoom(roomId) {
+    if (!confirm('Delete this room?')) return;
+    const me = users[activeUser];
+    const proj = el('projectId').value;
+    emit('delete room', { room_id: roomId, row_id: me.row_id, project_id: proj });
   }
 
   function sendMsg() {
-    const rid = state.currentRoomId || el('joinRoomId').value.trim();
+    const rid = state.currentRoomId;
     const me  = users[activeUser];
     const text = el('msgInput').value.trim();
-    const fileUrl = el('imgInput').value.trim();
-    
+    const file = el('imgInput').value.trim();
+    const proj = el('projectId').value;
+
     if (!rid) { alert('Join a room first'); return; }
-    if (!text && !fileUrl) return;
+    if (!text && !file) return;
 
-    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-    const type = fileUrl ? 'image' : 'text';
-
-    // Send chat message
     emit('chat message', {
-      room_id: rid,
-      project_id: proj,
-      from: me.name,
-      author_row_id: me.row_id,
-      content: fileUrl ? (text || 'Sent an image') : text,
-      type: type,
-      file: fileUrl,
-      parent_id: null
+      room_id: rid, project_id: proj,
+      from: me.name, author_row_id: me.row_id,
+      content: file ? (text || 'Image') : text,
+      type: file ? 'image' : 'text',
+      file, parent_id: null
     });
-    
+
     el('msgInput').value = '';
     el('imgInput').value = '';
     el('imgInput').style.display = 'none';
-    
-    // Stop typing indicator when message is sent
+
     clearTimeout(typingTimer);
-    if(isTyping) {
-       isTyping = false;
-       emit('typing:stop', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
+    if (isTyping) {
+      isTyping = false;
+      emit('typing:stop', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
     }
   }
 
-  function joinRoomByInput() {
-    const rid = el('joinRoomId').value.trim();
-    if (!rid) return;
-    joinRoom(rid, 'Manual Join');
+  // ── Typing ──
+  function handleTypingEvent(data, start) {
+    if (!data?.room_id || data.room_id !== state.currentRoomId) return;
+    if (data.user_name === activeUser) return;
+    if (start) state.typingUsers.add(data.user_name);
+    else state.typingUsers.delete(data.user_name);
+
+    if (state.typingUsers.size > 0) {
+      const names = [...state.typingUsers];
+      el('typingText').textContent = names.length === 1 ? names[0] + ' is typing' : names.length === 2 ? `${names[0]} and ${names[1]} are typing` : 'Several people are typing';
+      el('typingBar').style.display = 'flex';
+    } else {
+      el('typingBar').style.display = 'none';
+    }
   }
 
-  function markReadManual() {
-    const mid = el('manualMsgId').value.trim();
-    if (!mid) return;
-    markRead(mid);
-    el('manualMsgId').value = '';
-    log('sys', `Manual marked read: ${mid}`);
-  }
-
-  // ---------- TYPING INDICATOR LOGIC ----------
-  
-  let typingTimer;
-  const TYPING_DELAY = 1500; // 1.5 seconds delay
-  let isTyping = false;
-
-  // Listen to input changes
   el('msgInput').addEventListener('input', () => {
     const rid = state.currentRoomId;
     if (!rid) return;
-    
     const me = users[activeUser];
-    const proj = el('projectId').value || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-
-    // Emit start if we weren't typing
+    const proj = el('projectId').value;
     if (!isTyping) {
-        isTyping = true;
-        // Broadcasts to others in the room
-        emit('typing:start', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
+      isTyping = true;
+      emit('typing:start', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
     }
-
-    // Reset the timer
     clearTimeout(typingTimer);
-    
-    // Set timer to stop typing
     typingTimer = setTimeout(() => {
-        isTyping = false;
-        emit('typing:stop', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
-    }, TYPING_DELAY);
-  });
-  
-  // Submit on Enter key
-  el('msgInput').addEventListener('keydown', (e) => {
-     if(e.key === 'Enter') {
-         e.preventDefault();
-         sendMsg();
-     }
+      isTyping = false;
+      emit('typing:stop', { room_id: rid, user_name: me.name, row_id: me.row_id, project_id: proj });
+    }, 1500);
   });
 
-  // Allow custom Row ID edit
-  el('rowId').addEventListener('input', (e) => {
-     if(users[activeUser]) {
-         users[activeUser].row_id = e.target.value.trim();
-     }
-  });
+  el('msgInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendMsg(); } });
 
-  // Handle incoming typing events
-  function handleTypingEvent(data, isStart) {
-     if (!data || !data.room_id) return;
-     
-     // Only show if it's the current room and not our own event
-     if (data.room_id === state.currentRoomId && data.user_name !== activeUser) {
-         if (isStart) {
-             state.typingUsers.add(data.user_name);
-         } else {
-             state.typingUsers.delete(data.user_name);
-         }
-         updateTypingUI();
-     }
+  // ── Utils ──
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  function updateTypingUI() {
-     const ind = el('typingIndicator');
-     if (state.typingUsers.size > 0) {
-         const usersArr = Array.from(state.typingUsers);
-         let text = usersArr[0];
-         if (usersArr.length === 2) text = `${usersArr[0]} and ${usersArr[1]}`;
-         else if (usersArr.length > 2) text = 'Multiple people';
-         
-         el('typingUser').textContent = text;
-         ind.style.display = 'block';
-         
-         // Scroll to bottom so typing indicator is visible
-         const msgs = el('messages');
-         msgs.scrollTop = msgs.scrollHeight;
-     } else {
-         hideTyping();
-     }
+  function fmtTime(dateStr) {
+    try {
+      const d = new Date(dateStr);
+      const now = new Date();
+      if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      return d.toLocaleDateString([], { month:'short', day:'numeric' });
+    } catch { return ''; }
   }
 
-  function hideTyping() {
-     el('typingIndicator').style.display = 'none';
-  }
+  // ── Bind ──
+  el('btnMenu').onclick = () => { el('drawer').classList.add('open'); el('overlay').classList.add('open'); };
+  el('btnClose').onclick = () => { el('drawer').classList.remove('open'); el('overlay').classList.remove('open'); };
+  el('overlay').onclick = () => { el('drawer').classList.remove('open'); el('overlay').classList.remove('open'); };
 
-  // ---------- Bind Events ----------
-  el('btnOpenConfig').addEventListener('click', () => {
-      el('configDrawer').classList.add('open');
-      el('drawerOverlay').classList.add('open');
-  });
-  el('btnCloseConfig').addEventListener('click', () => {
-      el('configDrawer').classList.remove('open');
-      el('drawerOverlay').classList.remove('open');
-  });
-  el('drawerOverlay').addEventListener('click', () => {
-      el('configDrawer').classList.remove('open');
-      el('drawerOverlay').classList.remove('open');
-  });
-
-  el('btnConnect').addEventListener('click', connect);
-  el('btnConnected').addEventListener('click', doConnected);
-  el('btnRoomsList').addEventListener('click', pullRooms);
-  el('btnCreateDM').addEventListener('click', createDM);
-  el('btnCreateStaticGroup').addEventListener('click', createStaticGroup);
-  el('btnSendMsg').addEventListener('click', sendMsg);
-  el('btnJoinRoom').addEventListener('click', joinRoomByInput);
-  el('btnMarkRead').addEventListener('click', markReadManual);
-  el('btnImgToggle').addEventListener('click', () => {
-      const isVisible = el('imgInput').style.display === 'block';
-      el('imgInput').style.display = isVisible ? 'none' : 'block';
-      if (!isVisible) el('imgInput').focus();
-  });
-  el('btnResetIds').addEventListener('click', resetIds);
-  el('btnAddUser').addEventListener('click', () => {
-     let name = el('newUserName').value.trim();
-     if (!name) { alert("Please enter a name"); return; }
-     let rid = el('newUserRowId').value.trim();
-     if (!rid) rid = crypto.randomUUID();
-     
-     users[name] = { name: name, row_id: rid };
-     activeUser = name;
-     
-     el('newUserName').value = '';
-     el('newUserRowId').value = '';
-     el('rowId').value = rid;
-     
-     renderUserPills();
-     
-     state.currentRoomId = null;
-     el('activeRoomLabel').textContent = 'Select a room';
-     el('messages').innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:50px; font-size:0.9rem;">Join a room to start messaging</div>';
-     el('msgInput').disabled = true;
-     el('btnSendMsg').disabled = true;
-     hideTyping();
-     
-     log('sys', `Manual user '${name}' added and selected.`);
-  });
-
-  // Boot
-  (function boot() {
+  el('btnConnect').onclick = connect;
+  el('btnConnected').onclick = doConnected;
+  el('btnRoomsList').onclick = pullRooms;
+  el('btnCreateDM').onclick = createDM;
+  el('btnCreateStaticGroup').onclick = createStaticGroup;
+  el('btnSend').onclick = sendMsg;
+  el('btnJoinRoom').onclick = () => {
+    const rid = el('joinRoomId').value.trim();
+    if (rid) joinRoom(rid, { id: rid });
+  };
+  el('btnResetIds').onclick = () => {
+    users.Athos.row_id = STATIC_IDS.Athos;
+    users.Porthos.row_id = STATIC_IDS.Porthos;
+    users.Aramis.row_id = STATIC_IDS.Aramis;
     renderUserPills();
-  })();
+  };
+  el('btnAddUser').onclick = () => {
+    const name = el('newUserName').value.trim();
+    if (!name) { alert('Enter a name'); return; }
+    const rid = el('newUserRowId').value.trim() || crypto.randomUUID();
+    users[name] = { name, row_id: rid };
+    activeUser = name;
+    el('newUserName').value = '';
+    el('newUserRowId').value = '';
+    renderUserPills();
+    log('sys', `User '${name}' added`);
+  };
+  el('btnImgToggle').onclick = () => {
+    const inp = el('imgInput');
+    inp.style.display = inp.style.display === 'block' ? 'none' : 'block';
+    if (inp.style.display === 'block') inp.focus();
+  };
+  el('rowId').addEventListener('input', e => {
+    if (users[activeUser]) users[activeUser].row_id = e.target.value.trim();
+  });
 
-  // Re-mark visible messages when tab becomes visible
+  // Re-mark on tab focus
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) markAllVisibleAsRead();
   });
+
+  // Event Log panel toggle
+  el('btnLog').onclick = () => {
+    const logsPanel = document.querySelector('.logs-panel');
+    const main = document.querySelector('main');
+    
+    if (logsPanel.style.display === 'none') {
+      logsPanel.style.display = 'flex';
+      main.style.gridTemplateColumns = '300px 1fr 320px';
+    } else {
+      logsPanel.style.display = 'none';
+      main.style.gridTemplateColumns = '300px 1fr';
+    }
+  };
+
+  // Boot
+  renderUserPills();
 </script>
 </body>
 </html>

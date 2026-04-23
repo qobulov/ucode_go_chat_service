@@ -53,6 +53,8 @@ func NewSocketHandler(io *socketio.Io, strg storage.StorageI, log *logger.Logger
 		sk.On("typing:start", s.onTypingStart)
 		sk.On("typing:stop", s.onTypingStop)
 
+		sk.On("room:delete", s.onRoomDelete)
+
 		sk.On("disconnected", s.onDisconnection)
 	})
 }
@@ -425,15 +427,9 @@ func (s *socket) onChatMessage(event *socketio.EventPayload) {
 
 	members, err := s.storage.Postgres().RoomMembersByRoomId(ctx, params.RoomId)
 	if err == nil {
-		reqType := ""
-		if typeVal, ok := reqMap["type"].(string); ok {
-			reqType = typeVal
-		}
-
 		for _, m := range members {
 			items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
 				RowId:     m.RowId,
-				Type:      reqType,
 				ProjectId: params.ProjectId,
 				Offset:    params.Offset,
 				Limit:     params.Limit,
@@ -581,6 +577,20 @@ func (s *socket) onMessageRead(event *socketio.EventPayload) {
 		"by":      params.RowId,
 		"read_at": resp.ReadAt,
 	})
+
+	room, err := s.storage.Postgres().RoomGetSingle(ctx, &models.GetSingleRoom{Id: resp.RoomId})
+	if err != nil {
+		return
+	}
+
+	items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
+		RowId:     params.RowId,
+		ProjectId: room.ProjectId,
+		Limit:     params.Limit,
+	})
+	if err == nil {
+		event.Socket.Emit("rooms list", items.Rooms)
+	}
 }
 
 func (s *socket) onMessageUpdate(event *socketio.EventPayload) {
@@ -672,7 +682,6 @@ func (s *socket) onTypingStart(event *socketio.EventPayload) {
 		return
 	}
 
-	// Update presence on typing activity
 	rowId, _ := reqMap["row_id"].(string)
 	projectId, _ := reqMap["project_id"].(string)
 	if rowId != "" && projectId != "" {
@@ -684,10 +693,64 @@ func (s *socket) onTypingStart(event *socketio.EventPayload) {
 			ProjectId: projectId,
 			Now:       now,
 		})
+		s.io.Emit("presence.updated", map[string]any{
+			"row_id":       rowId,
+			"status":       "online",
+			"last_seen_at": now,
+			"project_id":   projectId,
+		})
 	}
 
-	// Broadcast typing start to everyone in the room
 	s.io.To(roomId).Emit("typing:start", reqMap)
+}
+
+func (s *socket) onRoomDelete(event *socketio.EventPayload) {
+	reqMap, ok := event.Data[0].(map[string]any)
+	if !ok {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomDelete", Message: "invalid payload"})
+		return
+	}
+	params := utils.ConvertMaptoStruct[models.DeleteRoom](reqMap)
+
+	if params.RoomId == "" || params.RowId == "" {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomDelete", Message: "room_id and row_id are required"})
+		return
+	}
+
+	if params.Limit == 0 || params.Limit > config.DefaultRoomsLimit {
+		params.Limit = config.DefaultRoomsLimit
+	}
+
+	ctx, cancel := s.ctx()
+	defer cancel()
+
+	members, err := s.storage.Postgres().RoomMembersByRoomId(ctx, params.RoomId)
+	if err != nil {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomDelete", Message: "failed to get members", Error: err.Error(), Request: reqMap})
+		return
+	}
+
+	err = s.storage.Postgres().RoomDelete(ctx, params.RoomId)
+	if err != nil {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomDelete", Message: "failed to delete room", Error: err.Error(), Request: reqMap})
+		return
+	}
+
+	s.io.To(params.RoomId).Emit("room.deleted", map[string]any{
+		"room_id": params.RoomId,
+		"by":      params.RowId,
+	})
+
+	for _, m := range members {
+		items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
+			RowId:     m.RowId,
+			ProjectId: params.ProjectId,
+			Limit:     params.Limit,
+		})
+		if err == nil {
+			s.io.To(m.RowId).Emit("rooms list", items.Rooms)
+		}
+	}
 }
 
 func (s *socket) onTypingStop(event *socketio.EventPayload) {

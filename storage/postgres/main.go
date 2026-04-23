@@ -37,6 +37,7 @@ type PostgresI interface {
 	RoomExists(ctx context.Context, req *models.ExistsRoom) (string, error)
 	UnreadCountInRoom(ctx context.Context, req *models.UnreadCountReq) (*models.UnreadCountResp, error)
 	RoomIdByItemId(ctx context.Context, req *models.GetRoomIdByItemIdReq) (*models.GetRoomIdByItemIdResp, error)
+	RoomDelete(ctx context.Context, id string) error
 
 	RoomMemberCreate(ctx context.Context, req *models.CreateRoomMember) (*models.RoomMember, error)
 	RoomMembersByRoomId(ctx context.Context, roomId string) ([]*models.RoomMember, error)

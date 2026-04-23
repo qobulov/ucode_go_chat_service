@@ -19,6 +19,7 @@ type Room struct {
 	LastMessageFrom        string          `json:"last_message_from,omitempty"`
 	LastMessageCreatedAt   string          `json:"last_message_created_at"`
 	UnreadMessageCount     int64           `json:"unread_message_count"`
+	MemberCount            int64           `json:"member_count"`
 	UserPresenceStatus     string          `json:"user_presence_status"`
 	UserPresenceLastSeenAt string          `json:"user_presence_last_seen"`
 }
