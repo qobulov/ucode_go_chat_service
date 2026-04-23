@@ -809,6 +809,7 @@ Bu bo'lim Flutter jamoasi uchun yakuniy integratsiya qo'llanmasi.
 - Send text/image: bor (`chat message`)
 - Read receipt: bor (`message:read`)
 - Typing indicator: bor (`typing:start/typing:stop`)
+- Room delete: bor (`room:delete` socket event yoki `DELETE /v1/room/:id` REST)
 - Presence online/offline: bor (`connected`, `presence:ping`, sweeper)
 
 ### 25.2 DM full flow (production)
@@ -861,7 +862,38 @@ Keyin nima qilish kerak:
 1. Member qo'shilgach clientda `rooms list` so'rang yoki socketdan kuting.
 2. Yangi member tomonda socket ulanishidan keyin room ro'yxatida ko'rinadi.
 
-### 25.5 Group member remove flow (muhim cheklov)
+### 25.5 Room delete flow
+
+Room o'chirish uchun ikki yo'l:
+
+**Socket (real-time, tavsiya etiladi):**
+
+```dart
+_socket.emit('room:delete', {
+  'room_id': roomId,
+  'row_id': currentUserId,
+  'project_id': projectId,
+});
+```
+
+Tinglash:
+
+```dart
+_socket.on('room.deleted', (data) {
+  final roomId = data['room_id'];
+  // Roomni lokal listdan olib tashlang
+});
+```
+
+**REST (fallback):**
+
+```bash
+DELETE /v1/room/{room_id}
+```
+
+Socket yo'li afzal — barcha a'zolarga real-time `room.deleted` broadcast qilinadi va har birining `rooms list` yangilanadi.
+
+### 25.6 Group member remove flow (muhim cheklov)
 
 Hozirgi backendda:
 

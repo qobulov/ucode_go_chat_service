@@ -73,3 +73,10 @@ type PresencePing struct {
 type PresenceGet struct {
 	RowId string `json:"row_id"`
 }
+
+type DeleteRoom struct {
+	RoomId    string `json:"room_id"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
+	Limit     uint64 `json:"limit"`
+}
