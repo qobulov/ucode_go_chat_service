@@ -129,7 +129,11 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 		s.emitErr(event.Socket, sockErr{Function: "onCreateRoom", Message: err, Error: err})
 		return
 	}
+
+	// DEBUG: log raw payload and parsed fields
+	s.log.Info("[DEBUG] onCreateRoom raw payload: %v", reqMap)
 	params := utils.ConvertMaptoStruct[models.CreateRoom](reqMap)
+	s.log.Info("[DEBUG] onCreateRoom parsed: row_id=%s project_id=%s type=%s to_row_id=%v", params.RowId, params.ProjectId, params.Type, params.ToRowId)
 
 	if params.RowId == "" || params.ProjectId == "" || params.Type == "" {
 		s.emitErr(event.Socket, sockErr{Function: "onCreateRoom", Message: "rowId, projectId and type are required"})
