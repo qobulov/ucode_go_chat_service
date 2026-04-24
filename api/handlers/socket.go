@@ -154,6 +154,7 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 		ToRowId:   params.ToRowId,
 		ItemId:    params.ItemId,
 	})
+	s.log.Info("[DEBUG] onCreateRoom RoomExists: id=%s err=%v", id, err)
 	if err == nil && id != "" {
 		memberAttributes := extractAttributes(reqMap, "member_attributes")
 		if len(memberAttributes) == 0 {
@@ -186,7 +187,9 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 		return
 	}
 
+	s.log.Info("[DEBUG] onCreateRoom calling RoomCreate")
 	room, err := s.storage.Postgres().RoomCreate(ctx, &params)
+	s.log.Info("[DEBUG] onCreateRoom RoomCreate result: room=%v err=%v", room, err)
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onCreateRoom", Message: "failed to create room", Error: err.Error(), Request: reqMap})
 		return
