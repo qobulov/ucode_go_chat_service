@@ -249,6 +249,23 @@
     .btn-delete-room:hover { background: rgba(251,113,133,.28); transform: scale(1.1); }
     .room-item:hover .btn-delete-room { display: flex; }
 
+    .btn-leave-room {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(148,163,184,.35);
+      background: rgba(148,163,184,.12);
+      color: var(--muted-light);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.12s;
+      flex-shrink: 0;
+    }
+    .btn-leave-room:hover { background: rgba(148,163,184,.28); transform: scale(1.1); }
+    .room-item:hover .btn-leave-room { display: flex; }
+
     .empty-state {
       padding: 40px 16px;
       text-align: center;
@@ -593,6 +610,13 @@
       <input id="projectId" value="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" />
     </div>
 
+    <div class="field">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="supervisorMode" style="width:16px; height:16px; cursor:pointer;" />
+        Supervisor (read-only)
+      </label>
+    </div>
+
     <div class="row2">
       <button class="btn" id="btnConnected">Identify (Init)</button>
       <button class="btn" id="btnRoomsList">Pull Rooms</button>
@@ -637,7 +661,7 @@
   <button class="btn" id="btnMenu" style="padding:6px 10px; font-size:1.1rem; border:none; background:transparent;">&#9776;</button>
   <div class="brand">Chat Tester</div>
   <input id="serverUrl" value="https://chat-service.u-code.io" placeholder="Server URL" />
-  <button class="btn btn-primary" id="btnConnect">Connect</button>
+  <button type="button" class="btn btn-primary" id="btnConnect" title="Connect to server; click again when connected to disconnect">Connect</button>
   <button class="btn" id="btnLog" style="margin-left: 8px;">Event Log</button>
   <div id="statusBadge" class="badge-status">Disconnected</div>
 </header>
@@ -758,10 +782,44 @@
     return colors[Math.abs(h) % colors.length];
   }
 
+  function syncConnectButton(connected) {
+    const b = el('btnConnect');
+    b.disabled = false;
+    if (connected) {
+      b.textContent = 'Disconnect';
+      b.className = 'btn';
+      b.title = 'Notify server (offline) and close socket';
+    } else {
+      b.textContent = 'Connect';
+      b.className = 'btn btn-primary';
+      b.title = 'Connect to server; when connected, this becomes Disconnect';
+    }
+  }
+
+  function disconnectGraceful() {
+    if (!socket?.connected) {
+      syncConnectButton(false);
+      return;
+    }
+    const me = users[activeUser];
+    const proj = el('projectId').value;
+    log('emit', '➡️ disconnected', { row_id: me.row_id, project_id: proj });
+    socket.emit('disconnected', { row_id: me.row_id, project_id: proj });
+    socket.disconnect();
+  }
+
   // ── Connect ──
   function connect() {
     const url = el('serverUrl').value || 'https://chat-service.u-code.io';
-    if (socket?.connected) socket.disconnect();
+    if (socket) {
+      try { socket.removeAllListeners(); } catch (_) {}
+      socket.disconnect();
+    }
+
+    const btn = el('btnConnect');
+    btn.disabled = true;
+    btn.textContent = 'Connecting...';
+    btn.className = 'btn';
 
     socket = io(url, { transports: ['websocket'], reconnection: true, reconnectionDelay: 500, reconnectionAttempts: Infinity });
 
@@ -769,13 +827,22 @@
       log('sys', 'Connected', { id: socket.id });
       el('statusBadge').textContent = 'Connected';
       el('statusBadge').className = 'badge-status connected';
+      syncConnectButton(true);
       doConnected();
+    });
+
+    socket.on('connect_error', err => {
+      log('err', 'Connect error', err);
+      el('statusBadge').textContent = 'Disconnected';
+      el('statusBadge').className = 'badge-status';
+      syncConnectButton(false);
     });
 
     socket.on('disconnect', reason => {
       log('sys', 'Disconnected', { reason });
       el('statusBadge').textContent = 'Disconnected';
       el('statusBadge').className = 'badge-status';
+      syncConnectButton(false);
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
     });
@@ -846,7 +913,13 @@
       }
       pullRooms();
     });
-    socket.on('error', e => log('err', '❌ error', e));
+    socket.on('room.member_left', data => {
+      log('ev', '⬅️ room.member_left', data);
+    });
+    socket.on('error', e => {
+      log('err', '❌ error', e);
+      if (e?.function === 'onRoomLeave') pullRooms();
+    });
   }
 
   function emit(ev, payload) {
@@ -921,6 +994,7 @@
       const presence = r.user_presence_status || 'offline';
       const time = r.last_message_created_at ? fmtTime(r.last_message_created_at) : '';
       const color = avatarColor(name);
+      const isGroup = r.type === 'group';
 
       const div = document.createElement('div');
       div.className = 'room-item' + (isActive ? ' active' : '');
@@ -937,12 +1011,18 @@
         <div class="room-meta">
           <span class="room-time">${time}</span>
           ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
-          <button class="btn-delete-room" title="Delete room">🗑</button>
+          ${r.member_count ? `<span style="font-size:0.7rem; color:var(--muted);">${r.member_count}m</span>` : ''}
+          ${!isSupervisor() && isGroup ? '<button class="btn-leave-room" title="Leave room">↩</button>' : ''}
+          ${!isSupervisor() ? '<button class="btn-delete-room" title="Delete room">🗑</button>' : ''}
         </div>`;
-      div.querySelector('.btn-delete-room').onclick = e => {
+      div.querySelector('.btn-leave-room')?.addEventListener('click', e => {
+        e.stopPropagation();
+        leaveRoom(r.id);
+      });
+      div.querySelector('.btn-delete-room')?.addEventListener('click', e => {
         e.stopPropagation();
         deleteRoom(r.id);
-      };
+      });
       div.onclick = () => joinRoom(r.id, r);
       list.appendChild(div);
     });
@@ -969,6 +1049,7 @@
   }
 
   function joinRoom(roomId, roomData) {
+    if (isSupervisor()) { joinRoomSupervisor(roomId, roomData); return; }
     const me = users[activeUser];
     state.currentRoomId = roomId;
     state.typingUsers.clear();
@@ -997,6 +1078,44 @@
 
     const proj = el('projectId').value;
     emit('join room', { room_id: roomId, row_id: me.row_id, project_id: proj, to_name: name, offset: 0, limit: 100 });
+  }
+
+  async function joinRoomSupervisor(roomId, roomData) {
+    state.currentRoomId = roomId;
+    state.typingUsers.clear();
+    el('typingBar').style.display = 'none';
+
+    const name = roomData?.to_name || roomData?.name || roomData?.type || 'Room';
+    const color = avatarColor(name);
+
+    el('chatAvatar').style.display = 'flex';
+    el('chatAvatar').style.background = color + '20';
+    el('chatAvatar').style.color = color;
+    el('chatAvatar').textContent = avatarLetter(name);
+    el('chatName').textContent = name;
+    el('chatSub').textContent = 'Supervisor (read-only)';
+
+    el('msgInput').disabled = true;
+    el('btnSend').disabled = true;
+
+    document.querySelectorAll('.room-item').forEach(d => d.classList.remove('active'));
+    const item = document.querySelector(`.room-item[data-room-id="${roomId}"]`);
+    if (item) item.classList.add('active');
+
+    el('messages').innerHTML = '<div class="empty-state" style="margin-top:60px;">Loading...</div>';
+
+    const url = el('serverUrl').value || 'https://chat-service.u-code.io';
+    try {
+      const resp = await fetch(`${url}/v1/supervisor/messages?room_id=${roomId}&limit=200`);
+      const data = await resp.json();
+      const msgs = data.body?.messages || data.body || [];
+      state.messages.set(roomId, Array.isArray(msgs) ? msgs : []);
+      renderMessages();
+      log('sys', 'Supervisor messages loaded', { room_id: roomId, count: msgs.length });
+    } catch (e) {
+      log('err', 'Supervisor messages fetch failed', e);
+      el('messages').innerHTML = '<div class="empty-state" style="margin-top:60px;">Failed to load messages</div>';
+    }
   }
 
   // ── Messages ──
@@ -1103,10 +1222,28 @@
     setTimeout(pullRooms, 400);
   }
 
+  function isSupervisor() { return el('supervisorMode').checked; }
+
   function pullRooms() {
+    if (isSupervisor()) { pullRoomsSupervisor(); return; }
     const me = users[activeUser];
     const proj = el('projectId').value;
     emit('rooms list', { row_id: me.row_id, project_id: proj, offset: 0, limit: 50 });
+  }
+
+  async function pullRoomsSupervisor() {
+    const proj = el('projectId').value;
+    if (!proj) { alert('Project ID is required for supervisor'); return; }
+    const url = el('serverUrl').value || 'https://chat-service.u-code.io';
+    try {
+      const resp = await fetch(`${url}/v1/supervisor/rooms?project_id=${proj}&limit=200`);
+      const data = await resp.json();
+      const rooms = data.body?.rooms || data.body || [];
+      log('sys', 'Supervisor rooms loaded', { count: rooms.length });
+      renderRooms(Array.isArray(rooms) ? rooms : []);
+    } catch (e) {
+      log('err', 'Supervisor fetch failed', e);
+    }
   }
 
   function createDM() {
@@ -1139,7 +1276,27 @@
     if (!confirm('Delete this room?')) return;
     const me = users[activeUser];
     const proj = el('projectId').value;
-    emit('delete room', { room_id: roomId, row_id: me.row_id, project_id: proj });
+    emit('room:delete', { room_id: roomId, row_id: me.row_id, project_id: proj });
+  }
+
+  function leaveRoom(roomId) {
+    if (!confirm('Leave this room?')) return;
+    const me = users[activeUser];
+    const proj = el('projectId').value;
+    emit('room:leave', { room_id: roomId, row_id: me.row_id, project_id: proj });
+    state.rooms.delete(roomId);
+    state.messages.delete(roomId);
+    renderRooms([...state.rooms.values()]);
+    if (state.currentRoomId === roomId) {
+      state.currentRoomId = null;
+      el('chatName').textContent = 'Select a room';
+      el('chatSub').textContent = '';
+      el('chatAvatar').style.display = 'none';
+      el('messages').innerHTML = '<div class="empty-state" style="margin-top:60px;">Select a room to start chatting</div>';
+      el('msgInput').disabled = true;
+      el('btnSend').disabled = true;
+      el('typingBar').style.display = 'none';
+    }
   }
 
   function sendMsg() {
@@ -1224,9 +1381,27 @@
   el('btnClose').onclick = () => { el('drawer').classList.remove('open'); el('overlay').classList.remove('open'); };
   el('overlay').onclick = () => { el('drawer').classList.remove('open'); el('overlay').classList.remove('open'); };
 
-  el('btnConnect').onclick = connect;
+  el('btnConnect').onclick = () => {
+    if (socket?.connected) disconnectGraceful();
+    else connect();
+  };
   el('btnConnected').onclick = doConnected;
   el('btnRoomsList').onclick = pullRooms;
+  el('supervisorMode').onchange = () => {
+    state.currentRoomId = null;
+    state.rooms.clear();
+    state.messages.clear();
+    el('roomsList').innerHTML = '<div class="empty-state">Click Pull Rooms</div>';
+    el('chatName').textContent = 'Select a room';
+    el('chatSub').textContent = '';
+    el('chatAvatar').style.display = 'none';
+    el('messages').innerHTML = '<div class="empty-state" style="margin-top:60px;">Select a room to start chatting</div>';
+    el('msgInput').disabled = true;
+    el('btnSend').disabled = true;
+    el('typingBar').style.display = 'none';
+    const label = document.querySelector('.rooms-panel .panel-header');
+    if (label) label.firstChild.textContent = isSupervisor() ? 'Supervisor ' : 'Rooms ';
+  };
   el('btnCreateDM').onclick = createDM;
   el('btnCreateStaticGroup').onclick = createStaticGroup;
   el('btnSend').onclick = sendMsg;

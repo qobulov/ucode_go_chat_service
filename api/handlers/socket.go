@@ -54,6 +54,8 @@ func NewSocketHandler(io *socketio.Io, strg storage.StorageI, log *logger.Logger
 		sk.On("typing:stop", s.onTypingStop)
 
 		sk.On("room:delete", s.onRoomDelete)
+		sk.On("room:leave", s.onRoomLeave)
+		sk.On("room:update", s.onRoomUpdate)
 
 		sk.On("disconnected", s.onDisconnection)
 	})
@@ -704,6 +706,88 @@ func (s *socket) onTypingStart(event *socketio.EventPayload) {
 	s.io.To(roomId).Emit("typing:start", reqMap)
 }
 
+func (s *socket) onRoomUpdate(event *socketio.EventPayload) {
+	reqMap, ok := event.Data[0].(map[string]any)
+	if !ok {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomUpdate", Message: "invalid payload"})
+		return
+	}
+	params := utils.ConvertMaptoStruct[models.UpdateRoomPayload](reqMap)
+
+	if params.RoomId == "" || params.RowId == "" {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomUpdate", Message: "room_id and row_id are required"})
+		return
+	}
+
+	if params.Limit == 0 || params.Limit > config.DefaultRoomsLimit {
+		params.Limit = config.DefaultRoomsLimit
+	}
+
+	ctx, cancel := s.ctx()
+	defer cancel()
+
+	roomAttrs := extractAttributes(reqMap, "attributes")
+	if params.Name != "" || len(roomAttrs) > 2 {
+		_, err := s.storage.Postgres().RoomUpdate(ctx, &models.UpdateRoom{
+			Id:         params.RoomId,
+			Name:       params.Name,
+			Attributes: roomAttrs,
+		})
+		if err != nil {
+			s.emitErr(event.Socket, sockErr{Function: "onRoomUpdate", Message: "failed to update room", Error: err.Error(), Request: reqMap})
+			return
+		}
+	}
+
+	memberAttrs := extractAttributes(reqMap, "member_attributes")
+	if params.ToName != "" || cast.ToString(params.ToRowId) != "" || len(memberAttrs) > 2 {
+		_, err := s.storage.Postgres().RoomMemberUpdate(ctx, &models.UpdateRoomMember{
+			RoomId:     params.RoomId,
+			RowId:      params.RowId,
+			ToName:     params.ToName,
+			ToRowId:    params.ToRowId,
+			Attributes: memberAttrs,
+		})
+		if err != nil {
+			s.emitErr(event.Socket, sockErr{Function: "onRoomUpdate", Message: "failed to update member", Error: err.Error(), Request: reqMap})
+			return
+		}
+	}
+
+	toRowId := cast.ToString(params.ToRowId)
+	if params.FromName != "" && toRowId != "" {
+		_, err := s.storage.Postgres().RoomMemberUpdate(ctx, &models.UpdateRoomMember{
+			RoomId: params.RoomId,
+			RowId:  toRowId,
+			ToName: params.FromName,
+		})
+		if err != nil {
+			s.emitErr(event.Socket, sockErr{Function: "onRoomUpdate", Message: "failed to update peer member", Error: err.Error(), Request: reqMap})
+			return
+		}
+	}
+
+	event.Socket.Emit("room.updated", map[string]any{
+		"room_id": params.RoomId,
+		"by":      params.RowId,
+	})
+
+	members, err := s.storage.Postgres().RoomMembersByRoomId(ctx, params.RoomId)
+	if err != nil {
+		return
+	}
+	for _, m := range members {
+		items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
+			RowId:     m.RowId,
+			ProjectId: params.ProjectId,
+			Limit:     params.Limit,
+		})
+		if err == nil {
+			s.io.To(m.RowId).Emit("rooms list", items.Rooms)
+		}
+	}
+}
+
 func (s *socket) onRoomDelete(event *socketio.EventPayload) {
 	reqMap, ok := event.Data[0].(map[string]any)
 	if !ok {
@@ -742,6 +826,81 @@ func (s *socket) onRoomDelete(event *socketio.EventPayload) {
 	})
 
 	for _, m := range members {
+		items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
+			RowId:     m.RowId,
+			ProjectId: params.ProjectId,
+			Limit:     params.Limit,
+		})
+		if err == nil {
+			s.io.To(m.RowId).Emit("rooms list", items.Rooms)
+		}
+	}
+}
+
+func (s *socket) onRoomLeave(event *socketio.EventPayload) {
+	reqMap, ok := event.Data[0].(map[string]any)
+	if !ok {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomLeave", Message: "invalid payload"})
+		return
+	}
+	params := utils.ConvertMaptoStruct[models.LeaveRoom](reqMap)
+
+	if params.RoomId == "" || params.RowId == "" {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomLeave", Message: "room_id and row_id are required"})
+		return
+	}
+
+	if params.Limit == 0 || params.Limit > config.DefaultRoomsLimit {
+		params.Limit = config.DefaultRoomsLimit
+	}
+
+	ctx, cancel := s.ctx()
+	defer cancel()
+
+	members, err := s.storage.Postgres().RoomMembersByRoomId(ctx, params.RoomId)
+	if err != nil {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomLeave", Message: "failed to get members", Error: err.Error(), Request: reqMap})
+		return
+	}
+
+	isMember := false
+	for _, m := range members {
+		if m.RowId == params.RowId {
+			isMember = true
+			break
+		}
+	}
+	if !isMember {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomLeave", Message: "not a member of this room", Request: reqMap})
+		return
+	}
+
+	if err = s.storage.Postgres().RoomMemberDelete(ctx, params.RoomId, params.RowId); err != nil {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomLeave", Message: "failed to leave room", Error: err.Error(), Request: reqMap})
+		return
+	}
+
+	event.Socket.Leave(params.RoomId)
+
+	myRooms, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
+		RowId:     params.RowId,
+		ProjectId: params.ProjectId,
+		Limit:     params.Limit,
+	})
+	if err != nil {
+		s.emitErr(event.Socket, sockErr{Function: "onRoomLeave", Message: "failed to refresh rooms list", Error: err.Error(), Request: reqMap})
+	} else {
+		event.Socket.Emit("rooms list", myRooms.Rooms)
+	}
+
+	for _, m := range members {
+		if m.RowId == params.RowId {
+			continue
+		}
+		s.io.To(m.RowId).Emit("room.member_left", map[string]any{
+			"room_id": params.RoomId,
+			"row_id":  params.RowId,
+		})
 		items, err := s.storage.Postgres().RoomGetList(ctx, &models.GetListRoomReq{
 			RowId:     m.RowId,
 			ProjectId: params.ProjectId,

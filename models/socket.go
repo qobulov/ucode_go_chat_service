@@ -80,3 +80,21 @@ type DeleteRoom struct {
 	ProjectId string `json:"project_id"`
 	Limit     uint64 `json:"limit"`
 }
+
+type LeaveRoom struct {
+	RoomId    string `json:"room_id"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
+	Limit     uint64 `json:"limit"`
+}
+
+type UpdateRoomPayload struct {
+	RoomId    string `json:"room_id"`
+	RowId     string `json:"row_id"`
+	ProjectId string `json:"project_id"`
+	Name      string `json:"name"`
+	ToName    string `json:"to_name"`
+	ToRowId   any    `json:"to_row_id"`
+	FromName  string `json:"from_name"`
+	Limit     uint64 `json:"limit"`
+}

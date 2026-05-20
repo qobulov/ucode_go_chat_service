@@ -38,9 +38,13 @@ type PostgresI interface {
 	UnreadCountInRoom(ctx context.Context, req *models.UnreadCountReq) (*models.UnreadCountResp, error)
 	RoomIdByItemId(ctx context.Context, req *models.GetRoomIdByItemIdReq) (*models.GetRoomIdByItemIdResp, error)
 	RoomDelete(ctx context.Context, id string) error
+	RoomUpdate(ctx context.Context, req *models.UpdateRoom) (*models.Room, error)
+	RoomGetListByProject(ctx context.Context, req *models.SupervisorRoomListReq) (*models.SupervisorRoomListResp, error)
 
 	RoomMemberCreate(ctx context.Context, req *models.CreateRoomMember) (*models.RoomMember, error)
 	RoomMembersByRoomId(ctx context.Context, roomId string) ([]*models.RoomMember, error)
+	RoomMemberDelete(ctx context.Context, roomId, rowId string) error
+	RoomMemberUpdate(ctx context.Context, req *models.UpdateRoomMember) (*models.RoomMember, error)
 	UpdateLastReadAt(ctx context.Context, req *models.UpdateLastReadAtReq) error
 
 	MessageCreate(ctx context.Context, req *models.CreateMessage) (*models.Message, error)

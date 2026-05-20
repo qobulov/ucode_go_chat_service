@@ -46,13 +46,19 @@ func New(log *logger.Logger, cfg config.Config, strg storage.StorageI) *gin.Engi
 	room.GET("", h.RoomGetList)
 	room.POST("/exist", h.RoomExists)
 	room.GET("/:item_id", h.RoomIdByItemId)
+	room.PATCH("/:id", h.RoomUpdate)
 	room.DELETE("/:id", h.RoomDelete)
 
 	roomMember := api.Group("/room-member")
 	roomMember.POST("", h.RoomMemberCreate)
+	roomMember.PATCH("", h.RoomMemberUpdate)
 
 	message := api.Group("/message")
 	message.GET("", h.MessageGetList)
+
+	supervisor := api.Group("/supervisor")
+	supervisor.GET("/rooms", h.SupervisorRooms)
+	supervisor.GET("/messages", h.SupervisorMessages)
 
 	io := socketio.New()
 	socketIoHandle(io, strg, log)

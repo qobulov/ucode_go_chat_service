@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"ucode/ucode_go_chat_service/models"
@@ -168,4 +169,104 @@ func (h *handler) RoomIdByItemId(c *gin.Context) {
 	}
 
 	handleResponse(c, http.StatusOK, resp)
+}
+
+func (h *handler) SupervisorRooms(c *gin.Context) {
+	projectId := c.Query("project_id")
+	if projectId == "" {
+		handleResponse(c, http.StatusBadRequest, errors.New("project_id is required"))
+		return
+	}
+
+	offset, err := ParseOffsetQueryParam(c)
+	if err != nil {
+		handleResponse(c, http.StatusBadRequest, err)
+		return
+	}
+
+	limit, err := ParseLimitQueryParam(c)
+	if err != nil {
+		handleResponse(c, http.StatusBadRequest, err)
+		return
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	resp, err := h.storage.Postgres().RoomGetListByProject(c.Request.Context(), &models.SupervisorRoomListReq{
+		ProjectId: projectId,
+		Offset:    uint64(offset),
+		Limit:     uint64(limit),
+		Search:    c.Query("search"),
+	})
+	if err != nil {
+		handleResponse(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	handleResponse(c, http.StatusOK, resp)
+}
+
+func (h *handler) SupervisorMessages(c *gin.Context) {
+	roomId := c.Query("room_id")
+	if roomId == "" {
+		handleResponse(c, http.StatusBadRequest, errors.New("room_id is required"))
+		return
+	}
+
+	offset, err := ParseOffsetQueryParam(c)
+	if err != nil {
+		handleResponse(c, http.StatusBadRequest, err)
+		return
+	}
+
+	limit, err := ParseLimitQueryParam(c)
+	if err != nil {
+		handleResponse(c, http.StatusBadRequest, err)
+		return
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	messages, err := h.storage.Postgres().MessageGetList(c.Request.Context(), &models.GetListMessageReq{
+		Offset: uint64(offset),
+		Limit:  uint64(limit),
+		RoomId: roomId,
+	})
+	if err != nil {
+		handleResponse(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	handleResponse(c, http.StatusOK, messages)
+}
+
+func (h *handler) RoomUpdate(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		handleResponse(c, http.StatusBadRequest, errors.New("id is required"))
+		return
+	}
+
+	var body struct {
+		Name       string          `json:"name"`
+		Attributes json.RawMessage `json:"attributes"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		handleResponse(c, http.StatusBadRequest, err)
+		return
+	}
+
+	room, err := h.storage.Postgres().RoomUpdate(c.Request.Context(), &models.UpdateRoom{
+		Id:         id,
+		Name:       body.Name,
+		Attributes: body.Attributes,
+	})
+	if err != nil {
+		handleResponse(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	handleResponse(c, http.StatusOK, room)
 }

@@ -43,9 +43,9 @@ type CreateRoom struct {
 }
 
 type UpdateRoom struct {
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	ProjectId string `json:"project_id"`
+	Id         string          `json:"id"`
+	Name       string          `json:"name"`
+	Attributes json.RawMessage `json:"attributes"`
 }
 
 type GetListRoomReq struct {
@@ -94,4 +94,33 @@ type GetRoomIdByItemIdReq struct {
 
 type GetRoomIdByItemIdResp struct {
 	RoomId string `json:"room_id"`
+}
+
+type SupervisorRoomListReq struct {
+	ProjectId string
+	Offset    uint64
+	Limit     uint64
+	Search    string
+}
+
+type SupervisorRoom struct {
+	Id                   string          `json:"id"`
+	Name                 string          `json:"name"`
+	Type                 string          `json:"type"`
+	ProjectId            string          `json:"project_id"`
+	ItemId               any             `json:"item_id"`
+	Attributes           json.RawMessage `json:"attributes"`
+	CreatedAt            string          `json:"created_at"`
+	UpdatedAt            string          `json:"updated_at"`
+	LastMessage          string          `json:"last_message,omitempty"`
+	LastMessageType      string          `json:"last_message_type,omitempty"`
+	LastMessageFile      string          `json:"last_message_file,omitempty"`
+	LastMessageFrom      string          `json:"last_message_from,omitempty"`
+	LastMessageCreatedAt string          `json:"last_message_created_at"`
+	MemberCount          int64           `json:"member_count"`
+}
+
+type SupervisorRoomListResp struct {
+	Count uint64            `json:"count"`
+	Rooms []*SupervisorRoom `json:"rooms"`
 }
