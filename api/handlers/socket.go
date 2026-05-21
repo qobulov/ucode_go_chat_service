@@ -131,7 +131,11 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 		s.emitErr(event.Socket, sockErr{Function: "onCreateRoom", Message: err, Error: err})
 		return
 	}
+
+	// DEBUG: log raw payload and parsed fields
+	s.log.Info("[DEBUG] onCreateRoom raw payload: %v", reqMap)
 	params := utils.ConvertMaptoStruct[models.CreateRoom](reqMap)
+	s.log.Info("[DEBUG] onCreateRoom parsed: row_id=%s project_id=%s type=%s to_row_id=%v", params.RowId, params.ProjectId, params.Type, params.ToRowId)
 
 	if params.RowId == "" || params.ProjectId == "" || params.Type == "" {
 		s.emitErr(event.Socket, sockErr{Function: "onCreateRoom", Message: "rowId, projectId and type are required"})
@@ -152,6 +156,7 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 		ToRowId:   params.ToRowId,
 		ItemId:    params.ItemId,
 	})
+	s.log.Info("[DEBUG] onCreateRoom RoomExists: id=%s err=%v", id, err)
 	if err == nil && id != "" {
 		memberAttributes := extractAttributes(reqMap, "member_attributes")
 		if len(memberAttributes) == 0 {
@@ -184,7 +189,9 @@ func (s *socket) onCreateRoom(event *socketio.EventPayload) {
 		return
 	}
 
+	s.log.Info("[DEBUG] onCreateRoom calling RoomCreate")
 	room, err := s.storage.Postgres().RoomCreate(ctx, &params)
+	s.log.Info("[DEBUG] onCreateRoom RoomCreate result: room=%v err=%v", room, err)
 	if err != nil {
 		s.emitErr(event.Socket, sockErr{Function: "onCreateRoom", Message: "failed to create room", Error: err.Error(), Request: reqMap})
 		return
