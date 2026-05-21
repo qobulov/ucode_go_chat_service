@@ -94,9 +94,13 @@ HTTP route'lar:
 - `GET /v1/room`
 - `POST /v1/room/exist`
 - `GET /v1/room/:item_id`
+- `PATCH /v1/room/:id`
 - `DELETE /v1/room/:id`
 - `POST /v1/room-member`
+- `PATCH /v1/room-member`
 - `GET /v1/message`
+- `GET /v1/supervisor/rooms`
+- `GET /v1/supervisor/messages`
 - `ANY /socket.io/*any`
 
 ### 5.1 REST contract qisqacha
@@ -169,6 +173,29 @@ Natija:
 
 - shu `item_id + project_id` uchun room id
 
+#### `PATCH /v1/room/:id`
+
+Vazifasi:
+
+- room `name` va/yoki `attributes` ni yangilash
+
+Path param:
+
+- `id` - room UUID
+
+Body (kamida bitta maydon):
+
+```json
+{
+  "name": "Yangi nom",
+  "attributes": { "profiles": {} }
+}
+```
+
+Response:
+
+- `200` + yangilangan room
+
 #### `DELETE /v1/room/:id`
 
 Vazifasi:
@@ -188,6 +215,60 @@ Response:
 Vazifasi:
 
 - roomga member yozuvini qo'lda qo'shish
+
+#### `PATCH /v1/room-member`
+
+Vazifasi:
+
+- o'z `room_members` qatoringizdagi `to_name`, `to_row_id`, `attributes` ni yangilash
+- `from_name` + `to_row_id` bo'lsa qarshi tomondagi member qatoridagi `to_name` ni yangilash (create room bilan bir xil)
+
+Body:
+
+```json
+{
+  "room_id": "room-uuid",
+  "row_id": "my-row-id",
+  "to_name": "Yangi ko'rinish nomi",
+  "to_row_id": "peer-row-id",
+  "from_name": "Mening ismim (peer uchun)",
+  "attributes": { "avatar": "https://..." }
+}
+```
+
+Response:
+
+- `200` + yangilangan member
+
+#### `GET /v1/supervisor/rooms`
+
+Vazifasi:
+
+- `project_id` bo'yicha **barcha** roomlarni ko'rish (a'zo bo'lmasdan ham)
+
+Query:
+
+- `project_id` - majburiy
+- `offset`, `limit` (max 200), `search` (room name)
+
+Response:
+
+- `200` + `{ count, rooms[] }`
+
+#### `GET /v1/supervisor/messages`
+
+Vazifasi:
+
+- istalgan room history (read-only monitoring)
+
+Query:
+
+- `room_id` - majburiy
+- `offset`, `limit` (max 200)
+
+Response:
+
+- `200` + `{ count, messages[] }`
 
 #### `GET /v1/message`
 
@@ -623,6 +704,9 @@ Client -> server eventlar:
 - `message:update`
 - `typing:start`
 - `typing:stop`
+- `room:delete`
+- `room:leave`
+- `room:update`
 - `disconnected`
 
 Server -> client eventlar:
@@ -636,6 +720,9 @@ Server -> client eventlar:
 - `message.update`
 - `typing:start`
 - `typing:stop`
+- `room.deleted`
+- `room.member_left`
+- `room.updated`
 - `error`
 
 Default limit qoidalari:
@@ -1152,7 +1239,70 @@ Server -> Room members: room.deleted { room_id, by }
 Server -> Har bir member: rooms list (yangilangan)
 ```
 
-### 11.11 Presence eventlar
+### 11.11 `room:leave`
+
+Vazifasi:
+
+- foydalanuvchini guruhdan chiqarish (`room_members` dan o'chirish, room o'chirilmaydi)
+
+#### Client -> Server payload:
+
+```json
+{
+  "room_id": "f3f95d20-5fc4-4cf9-a8df-65de2e67b13ec2e",
+  "row_id": "48dc336f-17b6-4c0f-ad4b-d2e67b13ec2e",
+  "project_id": "592e6339-d867-489e-8e6a-74ea28e0818d"
+}
+```
+
+#### Server -> Client:
+
+- Chiquvchiga yangilangan `rooms list`
+- Qolgan a'zolarga `room.member_left` + yangilangan `rooms list`
+
+### 11.12 `room:update`
+
+Vazifasi:
+
+- room `name` / `attributes` yangilash
+- o'z member qatoringizda `to_name`, `to_row_id`, `member_attributes`
+- `from_name` + `to_row_id` orqali qarshi tomonda sizning ko'rinadigan ismingizni yangilash
+
+#### Client -> Server payload:
+
+```json
+{
+  "room_id": "room-uuid",
+  "row_id": "my-row-id",
+  "project_id": "project-uuid",
+  "name": "Group title",
+  "to_name": "Peer display name",
+  "to_row_id": "peer-row-id",
+  "from_name": "My name for peer",
+  "attributes": { "profiles": {} },
+  "member_attributes": { "avatar": "https://..." }
+}
+```
+
+Maydonlar ixtiyoriy (kamida bittasi yuborilishi kerak).
+
+#### Server -> Client:
+
+- `room.updated` — so'rov yuborgan socketga
+- Barcha a'zolarga yangilangan `rooms list`
+
+REST alternativi: `PATCH /v1/room/:id`, `PATCH /v1/room-member`
+
+### 11.13 Supervisor REST (read-only)
+
+Supervisor a'zo bo'lmasdan monitoring qiladi:
+
+- `GET /v1/supervisor/rooms?project_id=...`
+- `GET /v1/supervisor/messages?room_id=...`
+
+Socket `join room` ishlatilmaydi (aks holda avtomatik member qo'shiladi).
+
+### 11.14 Presence eventlar
 
 Eventlar:
 
@@ -1168,7 +1318,7 @@ Logika:
 - `presence:get` bitta user holatini qaytaradi
 - `disconnected` offline qiladi
 
-### 11.11 Presence sweeper
+### 11.15 Presence sweeper
 
 Fon goroutine har 1 daqiqada:
 

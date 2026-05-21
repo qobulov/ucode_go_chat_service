@@ -803,7 +803,9 @@ Bu bo'lim Flutter jamoasi uchun yakuniy integratsiya qo'llanmasi.
 - DM create/open: bor
 - Group create/open: bor
 - Group member add: bor (`POST /v1/room-member`)
-- Group member remove: public API yo'q (backendda remove endpoint yo'q)
+- Group member leave: bor (`room:leave` socket event)
+- Room/member update: bor (`room:update` yoki `PATCH /v1/room/:id`, `PATCH /v1/room-member`)
+- Supervisor read-only: bor (`GET /v1/supervisor/rooms`, `GET /v1/supervisor/messages`)
 - History list: bor (`join room` yoki `GET /v1/message`)
 - History pagination: bor (`offset`, `limit`)
 - Send text/image: bor (`chat message`)
@@ -862,7 +864,84 @@ Keyin nima qilish kerak:
 1. Member qo'shilgach clientda `rooms list` so'rang yoki socketdan kuting.
 2. Yangi member tomonda socket ulanishidan keyin room ro'yxatida ko'rinadi.
 
-### 25.5 Room delete flow
+### 25.5 Group member leave flow
+
+```dart
+_socket.emit('room:leave', {
+  'room_id': roomId,
+  'row_id': currentUserId,
+  'project_id': projectId,
+});
+```
+
+Tinglash:
+
+```dart
+_socket.on('room.member_left', (data) {
+  // data: { room_id, row_id }
+});
+```
+
+### 25.6 Room update flow
+
+Socket (tavsiya):
+
+```dart
+_socket.emit('room:update', {
+  'room_id': roomId,
+  'row_id': currentUserId,
+  'project_id': projectId,
+  'to_name': 'Yangi nom',
+  'from_name': myDisplayName, // peer tomonda ko'rinadigan ism
+  'to_row_id': peerRowId,
+  'attributes': {'profiles': {...}},
+  'member_attributes': {'avatar': avatarUrl},
+});
+```
+
+Tinglash:
+
+```dart
+_socket.on('room.updated', (data) {
+  // data: { room_id, by }
+});
+// keyin rooms list keladi
+```
+
+REST fallback:
+
+```dart
+await dio.patch('$baseUrl/v1/room/$roomId', data: {
+  'name': 'Yangi nom',
+  'attributes': {'profiles': {}},
+});
+
+await dio.patch('$baseUrl/v1/room-member', data: {
+  'room_id': roomId,
+  'row_id': currentUserId,
+  'to_name': 'Peer Name',
+  'from_name': myDisplayName,
+  'to_row_id': peerRowId,
+});
+```
+
+### 25.7 Supervisor read-only flow
+
+```dart
+final rooms = await dio.get(
+  '$baseUrl/v1/supervisor/rooms',
+  queryParameters: {'project_id': projectId, 'limit': 100},
+);
+
+final messages = await dio.get(
+  '$baseUrl/v1/supervisor/messages',
+  queryParameters: {'room_id': roomId, 'limit': 200},
+);
+```
+
+Eslatma: supervisor `join room` emit qilmasin (a'zo bo'lib qoladi).
+
+### 25.8 Room delete flow
 
 Room o'chirish uchun ikki yo'l:
 

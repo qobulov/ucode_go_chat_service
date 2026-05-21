@@ -89,6 +89,52 @@ func (r *postgresRepo) RoomGetSingle(ctx context.Context, req *models.GetSingleR
 	return room, nil
 }
 
+func (r *postgresRepo) RoomUpdate(ctx context.Context, req *models.UpdateRoom) (*models.Room, error) {
+	setMap := map[string]any{
+		"updated_at": sq.Expr("CURRENT_TIMESTAMP"),
+	}
+	if req.Name != "" {
+		setMap["name"] = req.Name
+	}
+	if len(req.Attributes) > 0 {
+		setMap["attributes"] = req.Attributes
+	}
+	if len(setMap) == 1 {
+		return r.RoomGetSingle(ctx, &models.GetSingleRoom{Id: req.Id})
+	}
+
+	sqlStr, args, err := r.Db.Builder.
+		Update("rooms").
+		SetMap(setMap).
+		Where(sq.Eq{"id": req.Id}).
+		Suffix("RETURNING id, name, type, project_id, item_id, attributes, created_at, updated_at").
+		ToSql()
+	if err != nil {
+		return nil, HandleDatabaseError(err, r.Log, "RoomUpdate: build sql")
+	}
+
+	res := &models.Room{}
+	var itemId sql.NullString
+	err = r.Db.Pg.QueryRow(ctx, sqlStr, args...).Scan(
+		&res.Id,
+		&res.Name,
+		&res.Type,
+		&res.ProjectId,
+		&itemId,
+		&res.Attributes,
+		&CreatedAt,
+		&UpdatedAt,
+	)
+	if err != nil {
+		return nil, HandleDatabaseError(err, r.Log, "RoomUpdate: query run")
+	}
+
+	res.ItemId = itemId.String
+	res.CreatedAt = CreatedAt.Format(time.RFC1123)
+	res.UpdatedAt = UpdatedAt.Format(time.RFC1123)
+	return res, nil
+}
+
 func (r *postgresRepo) RoomGetList(ctx context.Context, req *models.GetListRoomReq) (*models.GetListRoomResp, error) {
 	res := &models.GetListRoomResp{Rooms: make([]*models.Room, 0)}
 
@@ -230,6 +276,113 @@ func (r *postgresRepo) RoomGetList(ctx context.Context, req *models.GetListRoomR
 		})
 
 		room.UnreadMessageCount = unreadCount.Count
+
+		res.Rooms = append(res.Rooms, room)
+	}
+
+	return res, nil
+}
+
+func (r *postgresRepo) RoomGetListByProject(ctx context.Context, req *models.SupervisorRoomListReq) (*models.SupervisorRoomListResp, error) {
+	res := &models.SupervisorRoomListResp{Rooms: make([]*models.SupervisorRoom, 0)}
+
+	builder := r.Db.Builder.
+		Select(
+			"r.id",
+			"r.name",
+			"r.type",
+			"r.project_id",
+			"r.item_id",
+			"r.attributes",
+			"r.created_at",
+			"r.updated_at",
+			"lm.message AS last_message",
+			"lm.type AS last_message_type",
+			"lm.file AS last_message_file",
+			"lm.from",
+			"lm.created_at AS last_message_created_at",
+			"(SELECT COUNT(*) FROM room_members rm2 WHERE rm2.room_id = r.id) AS member_count",
+			"COUNT(*) OVER()",
+		).
+		From("rooms r").
+		LeftJoin(`
+            (
+                SELECT DISTINCT ON (m.room_id)
+                    m.room_id,
+                    m.message,
+                    m.type,
+                    m.file,
+                    m.from,
+                    m.created_at
+                FROM messages m
+                ORDER BY m.room_id, m.created_at DESC
+            ) AS lm ON lm.room_id = r.id
+        `).
+		Where(sq.Eq{"r.project_id": req.ProjectId}).
+		OrderBy("r.updated_at DESC").
+		Limit(req.Limit).
+		Offset(req.Offset)
+
+	if req.Search != "" {
+		builder = builder.Where(sq.ILike{"r.name": "%" + req.Search + "%"})
+	}
+
+	sqlStr, args, err := builder.ToSql()
+	if err != nil {
+		return nil, HandleDatabaseError(err, r.Log, "RoomGetListByProject: build sql")
+	}
+
+	rows, err := r.Db.Pg.Query(ctx, sqlStr, args...)
+	if err != nil {
+		return nil, HandleDatabaseError(err, r.Log, "RoomGetListByProject: query run")
+	}
+	defer rows.Close()
+
+	first := true
+	for rows.Next() {
+		room := &models.SupervisorRoom{}
+		var (
+			totalCnt                                             uint64
+			lastMsg, lastMsgType, lastMsgFile, lastMsgFrom, itemId sql.NullString
+			lastMessageCreatedAt                                 sql.NullTime
+			CreatedAt, UpdatedAt                                 time.Time
+		)
+
+		if err = rows.Scan(
+			&room.Id,
+			&room.Name,
+			&room.Type,
+			&room.ProjectId,
+			&itemId,
+			&room.Attributes,
+			&CreatedAt,
+			&UpdatedAt,
+			&lastMsg,
+			&lastMsgType,
+			&lastMsgFile,
+			&lastMsgFrom,
+			&lastMessageCreatedAt,
+			&room.MemberCount,
+			&totalCnt,
+		); err != nil {
+			return nil, HandleDatabaseError(err, r.Log, "RoomGetListByProject: row scan")
+		}
+
+		if first {
+			res.Count = totalCnt
+			first = false
+		}
+
+		room.CreatedAt = CreatedAt.Format(time.RFC1123)
+		room.UpdatedAt = UpdatedAt.Format(time.RFC1123)
+		room.LastMessage = lastMsg.String
+		room.LastMessageFrom = lastMsgFrom.String
+		room.LastMessageType = lastMsgType.String
+		room.LastMessageFile = lastMsgFile.String
+		if lastMessageCreatedAt.Valid {
+			room.LastMessageCreatedAt = lastMessageCreatedAt.Time.Format(time.RFC1123)
+		}
+		room.ItemId = itemId.String
 
 		res.Rooms = append(res.Rooms, room)
 	}
