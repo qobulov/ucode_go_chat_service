@@ -113,21 +113,23 @@ func (r *postgresRepo) MessageGetList(ctx context.Context, req *models.GetListMe
 
 	outer := r.Db.Builder.
 		Select(
-			"id",
-			"room_id",
-			"message",
-			`"type"`,
-			"file",
-			`"from"`,
-			"author_row_id",
-			"created_at",
-			"updated_at",
-			"read_at",
-			"parent_id",
-			"total_count",
+			"picked.id",
+			"picked.room_id",
+			"picked.message",
+			`picked."type"`,
+			"picked.file",
+			`picked."from"`,
+			"picked.author_row_id",
+			"picked.created_at",
+			"picked.updated_at",
+			"picked.read_at",
+			"picked.parent_id",
+			"picked.total_count",
+			"COALESCE(rm.attributes, '{}') AS attributes",
 		).
 		FromSelect(inner, "picked").
-		OrderBy("created_at ASC")
+		LeftJoin("room_members rm ON rm.room_id = picked.room_id AND rm.row_id = picked.author_row_id").
+		OrderBy("picked.created_at ASC")
 
 	sqlStr, args, err := outer.ToSql()
 	if err != nil {
@@ -162,6 +164,7 @@ func (r *postgresRepo) MessageGetList(ctx context.Context, req *models.GetListMe
 			&readAt,
 			&parentId,
 			&totalCnt,
+			&msg.UserAttributes,
 		); err != nil {
 			return nil, HandleDatabaseError(err, r.Log, "MessageGetList: row scan")
 		}

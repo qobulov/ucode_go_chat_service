@@ -1,19 +1,23 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type Message struct {
-	Id          string `json:"id"`
-	RoomId      string `json:"room_id"`
-	Message     string `json:"message"`
-	Type        string `json:"type"`
-	File        string `json:"file"`
-	AuthorRowId string `json:"author_row_id"`
-	From        string `json:"from"`
-	ParentId    any    `json:"parent_id"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-	ReadAt      string `json:"read_at"`
+	Id             string          `json:"id"`
+	RoomId         string          `json:"room_id"`
+	Message        string          `json:"message"`
+	Type           string          `json:"type"`
+	File           string          `json:"file"`
+	AuthorRowId    string          `json:"author_row_id"`
+	From           string          `json:"from"`
+	ParentId       any             `json:"parent_id"`
+	CreatedAt      string          `json:"created_at"`
+	UpdatedAt      string          `json:"updated_at"`
+	ReadAt         string          `json:"read_at"`
+	UserAttributes json.RawMessage `json:"attributes"`
 }
 
 type CreateMessage struct {
